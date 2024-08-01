@@ -38,7 +38,7 @@ forge test
 ### Depoly
 
 ```
-forge script script/TreasureManager.s.sol:TreasureManagerScript --rpc-url $RPC_URL --private-key $PRIVKEY
+forge script script/DeployerMantaLayerScript.s.sol:DeployerMantaLayerScript --rpc-url $RPC_URL --private-key $PRIVKEY
 
 ```
 

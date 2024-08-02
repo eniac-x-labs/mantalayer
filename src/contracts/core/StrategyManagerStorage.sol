@@ -14,6 +14,8 @@ abstract contract StrategyManagerStorage is IStrategyManager {
 
     uint8 internal constant MAX_STAKER_STRATEGY_LIST_LENGTH = 32;
 
+    IDelegationManager public immutable delegation;
+
     bytes32 internal _DOMAIN_SEPARATOR;
 
     mapping(address => uint256) public nonces;
@@ -22,22 +24,25 @@ abstract contract StrategyManagerStorage is IStrategyManager {
 
     uint256 internal withdrawalDelayBlocks;
 
-    mapping(address => mapping(address => uint256)) public stakerStrategyShares;
+    mapping(address => mapping(IStrategyBase => uint256)) public stakerStrategyShares;
 
-    mapping(address => mapping(address => uint256)) public stakerStrategyL1BackShares;
-
-    mapping(address => address[]) public stakerStrategyList;
+    mapping(address => IStrategyBase[]) public stakerStrategyList;
 
     mapping(bytes32 => bool) public withdrawalRootPending;
 
     mapping(address => uint256) internal numWithdrawalsQueued;
 
-    mapping(address => bool) public strategyIsWhitelistedForDeposit;
+    mapping(IStrategyBase => bool) public strategyIsWhitelistedForDeposit;
 
     mapping(address => uint256) internal beaconChainETHSharesToDecrementOnWithdrawal;
 
 
-    mapping(address => bool) public thirdPartyTransfersForbidden;
+    mapping(IStrategyBase => bool) public thirdPartyTransfersForbidden;
+
+
+    constructor(IDelegationManager _delegation) {
+        delegation = _delegation;
+    }
 
 
     uint256[100] private __gap;

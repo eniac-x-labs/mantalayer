@@ -2,11 +2,18 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
+import "@openzeppelin-upgrades/contracts/utils/ReentrancyGuardUpgradeable.sol";
 
-import "../../libraries/EIP1271SignatureUtils.sol";
+import "@/libraries/EIP1271SignatureUtils.sol";
+import "@/access/interfaces/IPauserRegistry.sol";
+import "@/access/Pausable.sol";
+
 import "./DelegationManagerStorage.sol";
 
-contract DelegationManager is DelegationManagerStorage {
+
+contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, Pausable, DelegationManagerStorage {
     uint8 internal constant PAUSED_NEW_DELEGATION = 0;
 
     uint8 internal constant PAUSED_ENTER_WITHDRAWAL_QUEUE = 1;
@@ -17,21 +24,32 @@ contract DelegationManager is DelegationManagerStorage {
 
     uint256 public constant MAX_STAKER_OPT_OUT_WINDOW_BLOCKS = (180 days) / 12;
 
+    modifier onlyStrategyManager() {
+        require(
+            msg.sender == address(strategyManager),
+            "onlyStrategyManager"
+        );
+        _;
+    }
+
 
     /*******************************************************************************
                             INITIALIZING FUNCTIONS
     *******************************************************************************/
-    constructor() {
+    constructor(IStrategyManager _strategyManager) DelegationManagerStorage(_strategyManager) {
         _disableInitializers();
         ORIGINAL_CHAIN_ID = block.chainid;
     }
 
     function initialize(
         address initialOwner,
+        IPauserRegistry _pauserRegistry,
+        uint256 initialPausedStatus,
         uint256 _minWithdrawalDelayBlocks,
-        address[] calldata _strategies,
+        IStrategyBase[] calldata _strategies,
         uint256[] calldata _withdrawalDelayBlocks
     ) external initializer {
+        _initializePauser(_pauserRegistry, initialPausedStatus);
         _DOMAIN_SEPARATOR = _calculateDomainSeparator();
         _transferOwnership(initialOwner);
         _setMinWithdrawalDelayBlocks(_minWithdrawalDelayBlocks);
@@ -103,7 +121,6 @@ contract DelegationManager is DelegationManagerStorage {
     }
 
     function undelegate(address staker) external returns (bytes32[] memory withdrawalRoots) {
-        require(getL2Pauser().isUnDelegate(), "DelegationManager:undelegate paused");
         require(isDelegated(staker), "DelegationManager.undelegate: staker must be delegated to undelegate");
         require(!isOperator(staker), "DelegationManager.undelegate: operators cannot be undelegated");
         require(staker != address(0), "DelegationManager.undelegate: cannot undelegate zero address");
@@ -115,7 +132,7 @@ contract DelegationManager is DelegationManagerStorage {
             "DelegationManager.undelegate: caller cannot undelegate staker"
         );
 
-        (address[] memory strategies, uint256[] memory shares) = getDelegatableShares(staker);
+        (IStrategyBase[] memory strategies, uint256[] memory shares) = getDelegatableShares(staker);
 
         if (msg.sender != staker) {
             emit StakerForceUndelegated(staker, operator);
@@ -129,7 +146,7 @@ contract DelegationManager is DelegationManagerStorage {
         } else {
             withdrawalRoots = new bytes32[](strategies.length);
             for (uint256 i = 0; i < strategies.length; i++) {
-                address[] memory singleStrategy = new address[](1);
+                IStrategyBase[] memory singleStrategy = new IStrategyBase[](1);
                 uint256[] memory singleShare = new uint256[](1);
                 singleStrategy[0] = strategies[i];
                 singleShare[0] = shares[i];
@@ -150,7 +167,6 @@ contract DelegationManager is DelegationManagerStorage {
     function queueWithdrawals(
         QueuedWithdrawalParams[] calldata queuedWithdrawalParams
     ) external returns (bytes32[] memory) {
-        require(getL2Pauser().isStakerWithdraw(), "DelegationManager:queueWithdrawals paused");
         bytes32[] memory withdrawalRoots = new bytes32[](queuedWithdrawalParams.length);
         address operator = delegatedTo[msg.sender];
 
@@ -174,7 +190,6 @@ contract DelegationManager is DelegationManagerStorage {
         uint256 middlewareTimesIndex,
         bool receiveAsWeth
     ) external nonReentrant {
-        require(getL2Pauser().isStakerWithdraw(), "DelegationManager:completeQueuedWithdrawal paused");
         _completeQueuedWithdrawal(withdrawal, weth, middlewareTimesIndex, receiveAsWeth);
     }
 
@@ -184,7 +199,6 @@ contract DelegationManager is DelegationManagerStorage {
         uint256[] calldata middlewareTimesIndexes,
         bool[] calldata receiveAsWeth
     ) external nonReentrant {
-        require(getL2Pauser().isStakerWithdraw(), "DelegationManager:completeQueuedWithdrawals paused");
         for (uint256 i = 0; i < withdrawals.length; ++i) {
             _completeQueuedWithdrawal(withdrawals[i], weth, middlewareTimesIndexes[i], receiveAsWeth[i]);
         }
@@ -193,7 +207,7 @@ contract DelegationManager is DelegationManagerStorage {
     function migrateQueuedWithdrawals(IStrategyManager.DeprecatedStruct_QueuedWithdrawal[] memory withdrawalsToMigrate) external {
         for(uint256 i = 0; i < withdrawalsToMigrate.length;) {
             IStrategyManager.DeprecatedStruct_QueuedWithdrawal memory withdrawalToMigrate = withdrawalsToMigrate[i];
-            (bool isDeleted, bytes32 oldWithdrawalRoot) = getStrategyManager().migrateQueuedWithdrawal(withdrawalToMigrate);
+            (bool isDeleted, bytes32 oldWithdrawalRoot) = strategyManager.migrateQueuedWithdrawal(withdrawalToMigrate);
             if (isDeleted) {
                 address staker = withdrawalToMigrate.staker;
                 uint256 nonce = cumulativeWithdrawalsQueued[staker];
@@ -223,7 +237,7 @@ contract DelegationManager is DelegationManagerStorage {
 
     function increaseDelegatedShares(
         address staker,
-        address strategy,
+        IStrategyBase strategy,
         uint256 shares
     ) external onlyStrategyManager {
         if (isDelegated(staker)) {
@@ -234,7 +248,7 @@ contract DelegationManager is DelegationManagerStorage {
 
     function decreaseDelegatedShares(
         address staker,
-        address strategy,
+        IStrategyBase strategy,
         uint256 shares
     ) external onlyStrategyManager {
         if (isDelegated(staker)) {
@@ -253,7 +267,7 @@ contract DelegationManager is DelegationManagerStorage {
     }
 
     function setStrategyWithdrawalDelayBlocks(
-        address[] calldata strategies,
+        IStrategyBase[] calldata strategies,
         uint256[] calldata withdrawalDelayBlocks
     ) external onlyOwner {
         _setStrategyWithdrawalDelayBlocks(strategies, withdrawalDelayBlocks);
@@ -285,7 +299,6 @@ contract DelegationManager is DelegationManagerStorage {
         SignatureWithExpiry memory approverSignatureAndExpiry,
         bytes32 approverSalt
     ) internal {
-        require(getL2Pauser().isDelegate(), "DelegationManager:isDelegate paused");
         require(!isDelegated(staker), "DelegationManager._delegate: staker is already actively delegated");
         require(isOperator(operator), "DelegationManager._delegate: operator is not registered in DappLink");
 
@@ -322,7 +335,7 @@ contract DelegationManager is DelegationManagerStorage {
         delegatedTo[staker] = operator;
         emit StakerDelegated(staker, operator);
 
-        (address[] memory strategies, uint256[] memory shares)
+        (IStrategyBase[] memory strategies, uint256[] memory shares)
         = getDelegatableShares(staker);
 
         for (uint256 i = 0; i < strategies.length;) {
@@ -369,7 +382,7 @@ contract DelegationManager is DelegationManagerStorage {
                     "DelegationManager._completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed for this strategy"
                 );
 
-                _withdrawSharesAsWeth({
+                _withdrawSharesAsTokens({
                     withdrawer: msg.sender,
                     strategy: withdrawal.strategies[i],
                     shares: withdrawal.shares[i],
@@ -385,7 +398,7 @@ contract DelegationManager is DelegationManagerStorage {
                 //     withdrawal.startBlock + strategyWithdrawalDelayBlocks[withdrawal.strategies[i]] <= block.number,
                 //     "DelegationManager._completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed for this strategy"
                 // );
-                getStrategyManager().addShares(msg.sender, weth, withdrawal.strategies[i], withdrawal.shares[i]);
+                strategyManager.addShares(msg.sender, weth, withdrawal.strategies[i], withdrawal.shares[i]);
                 if (currentOperator != address(0)) {
                     _increaseOperatorShares({
                         operator: currentOperator,
@@ -401,13 +414,13 @@ contract DelegationManager is DelegationManagerStorage {
         // emit WithdrawalCompleted(withdrawalRoot);
     }
 
-    function _increaseOperatorShares(address operator, address staker, address strategy, uint256 shares) internal {
+    function _increaseOperatorShares(address operator, address staker, IStrategyBase strategy, uint256 shares) internal {
         operatorShares[operator][strategy] += shares;
         stakerStrategyOperatorShares[operator][strategy][operator] += shares;
         emit OperatorSharesIncreased(operator, staker, strategy, shares);
     }
 
-    function _decreaseOperatorShares(address operator, address staker, address strategy, uint256 shares) internal {
+    function _decreaseOperatorShares(address operator, address staker, IStrategyBase strategy, uint256 shares) internal {
         operatorShares[operator][strategy] -= shares;
         stakerStrategyOperatorShares[operator][strategy][operator] -= shares;
         emit OperatorSharesDecreased(operator, staker, strategy, shares);
@@ -417,30 +430,26 @@ contract DelegationManager is DelegationManagerStorage {
         address staker,
         address operator,
         address withdrawer,
-        address[] memory strategies,
+        IStrategyBase[] memory strategies,
         uint256[] memory shares
     ) internal returns (bytes32) {
         require(staker != address(0), "DelegationManager._removeSharesAndQueueWithdrawal: staker cannot be zero address");
         require(strategies.length != 0, "DelegationManager._removeSharesAndQueueWithdrawal: strategies cannot be empty");
         for (uint256 i = 0; i < strategies.length;) {
-            uint256 l1BackShares = getStrategyManager().getStakerStrategyL1BackShares(staker, strategies[i]);
-            if (l1BackShares >= shares[i]) {
-                if (operator != address(0)) {
-                    _decreaseOperatorShares({
-                        operator: operator,
-                        staker: staker,
-                        strategy: strategies[i],
-                        shares: shares[i]
-                    });
-                }
-                require(
-                    staker == withdrawer || !getStrategyManager().thirdPartyTransfersForbidden(strategies[i]),
-                    "DelegationManager._removeSharesAndQueueWithdrawal: withdrawer must be same address as staker if thirdPartyTransfersForbidden are set"
-                );
-                getStrategyManager().removeShares(staker, strategies[i], shares[i]);
-
-                unchecked { ++i; }
+            if (operator != address(0)) {
+                _decreaseOperatorShares({
+                    operator: operator,
+                    staker: staker,
+                    strategy: strategies[i],
+                    shares: shares[i]
+                });
             }
+            require(
+                staker == withdrawer || !strategyManager.thirdPartyTransfersForbidden(strategies[i]),
+                "DelegationManager._removeSharesAndQueueWithdrawal: withdrawer must be same address as staker if thirdPartyTransfersForbidden are set"
+            );
+            strategyManager.removeShares(staker, strategies[i], shares[i]);
+            unchecked { ++i; }
         }
 
         uint256 nonce = cumulativeWithdrawalsQueued[staker];
@@ -464,8 +473,8 @@ contract DelegationManager is DelegationManagerStorage {
         return withdrawalRoot;
     }
 
-    function _withdrawSharesAsWeth(address withdrawer, address strategy, uint256 shares, IERC20 weth) internal {
-        getStrategyManager().withdrawSharesAsWeth(withdrawer, strategy, shares, weth);
+    function _withdrawSharesAsTokens(address withdrawer, IStrategyBase strategy, uint256 shares, IERC20 weth) internal {
+        strategyManager.withdrawSharesAsTokens(withdrawer, strategy, shares, weth);
     }
 
     function _setMinWithdrawalDelayBlocks(uint256 _minWithdrawalDelayBlocks) internal {
@@ -478,7 +487,7 @@ contract DelegationManager is DelegationManagerStorage {
     }
 
     function _setStrategyWithdrawalDelayBlocks(
-        address[] calldata _strategies,
+        IStrategyBase[] calldata _strategies,
         uint256[] calldata _withdrawalDelayBlocks
     ) internal {
         require(
@@ -487,7 +496,7 @@ contract DelegationManager is DelegationManagerStorage {
         );
         uint256 numStrats = _strategies.length;
         for (uint256 i = 0; i < numStrats; ++i) {
-            address strategy = _strategies[i];
+            IStrategyBase strategy = _strategies[i];
             uint256 prevStrategyWithdrawalDelayBlocks = strategyWithdrawalDelayBlocks[strategy];
             uint256 newStrategyWithdrawalDelayBlocks = _withdrawalDelayBlocks[i];
             require(
@@ -541,7 +550,7 @@ contract DelegationManager is DelegationManagerStorage {
 
     function getOperatorShares(
         address operator,
-        address[] memory strategies
+        IStrategyBase[] memory strategies
     ) public view returns (uint256[] memory) {
         uint256[] memory shares = new uint256[](strategies.length);
         for (uint256 i = 0; i < strategies.length; ++i) {
@@ -550,12 +559,12 @@ contract DelegationManager is DelegationManagerStorage {
         return shares;
     }
 
-    function getDelegatableShares(address staker) public view returns (address[] memory, uint256[] memory) {
-        (address[] memory strategyManagerStrats, uint256[] memory strategyManagerShares) = getStrategyManager().getDeposits(staker);
+    function getDelegatableShares(address staker) public view returns (IStrategyBase[] memory, uint256[] memory) {
+        (IStrategyBase[] memory strategyManagerStrats, uint256[] memory strategyManagerShares) = strategyManager.getDeposits(staker);
         return (strategyManagerStrats, strategyManagerShares);
     }
 
-    function getWithdrawalDelay(address[] calldata strategies) public view returns (uint256) {
+    function getWithdrawalDelay(IStrategyBase[] calldata strategies) public view returns (uint256) {
         uint256 withdrawalDelay = minWithdrawalDelayBlocks;
         for (uint256 i = 0; i < strategies.length; ++i) {
             uint256 currWithdrawalDelay = strategyWithdrawalDelayBlocks[strategies[i]];

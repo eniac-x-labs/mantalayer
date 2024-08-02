@@ -2,18 +2,26 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
+import "@openzeppelin-upgrades/contracts/utils/ReentrancyGuardUpgradeable.sol";
+
+
 import "./StrategyManagerStorage.sol";
 import "../../libraries/EIP1271SignatureUtils.sol";
-import "../../libraries/ETHAddress.sol";
 
-
-contract StrategyManager is StrategyManagerStorage {
+contract StrategyManager is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, StrategyManagerStorage {
     using SafeERC20 for IERC20;
 
     uint8 internal constant PAUSED_DEPOSITS = 0;
     uint256 internal immutable ORIGINAL_CHAIN_ID;
 
-    constructor()  {
+    modifier onlyDelegationManager() {
+        require(msg.sender == address(delegation), "onlyDelegationManager");
+        _;
+    }
+
+    constructor(IDelegationManager _delegation) StrategyManagerStorage(_delegation) {
         _disableInitializers();
     }
 
@@ -29,24 +37,21 @@ contract StrategyManager is StrategyManagerStorage {
     }
 
     function depositIntoStrategy(
-        address strategy,
+        IStrategyBase strategy,
         IERC20 tokenAddress,
         uint256 amount
     ) external nonReentrant returns (uint256 shares) {
-        require(getL2Pauser().isStrategyDeposit(), "StrategyManager.t.sol:depositWETHIntoStrategy paused");
-
         shares = _depositIntoStrategy(msg.sender, strategy, tokenAddress, amount);
     }
 
     function depositIntoStrategyWithSignature(
-        address strategy,
+        IStrategyBase strategy,
         IERC20 tokenAddress,
         uint256 amount,
         address staker,
         uint256 expiry,
         bytes memory signature
     ) external nonReentrant returns (uint256 shares) {
-        require(getL2Pauser().isStrategyDeposit(), "StrategyManager:depositWETHIntoStrategyWithSignature paused");
         require(
             !thirdPartyTransfersForbidden[strategy],
             "StrategyManager.depositIntoStrategyWithSignature: third transfers disabled"
@@ -62,12 +67,12 @@ contract StrategyManager is StrategyManagerStorage {
 
         EIP1271SignatureUtils.checkSignature_EIP1271(staker, digestHash, signature);
 
-        shares = _depositIntoStrategy(staker, strategy, weth, amount);
+        shares = _depositIntoStrategy(staker, strategy, tokenAddress, amount);
     }
 
     function removeShares(
         address staker,
-        address strategy,
+        IStrategyBase strategy,
         uint256 shares
     ) external onlyDelegationManager {
         _removeShares(staker, strategy, shares);
@@ -76,27 +81,22 @@ contract StrategyManager is StrategyManagerStorage {
     function addShares(
         address staker,
         IERC20 weth,
-        address strategy,
+        IStrategyBase strategy,
         uint256 shares
     ) external onlyDelegationManager {
         _addShares(staker, weth, strategy, shares);
     }
 
-    function withdrawSharesAsWeth(
+    function withdrawSharesAsTokens(
         address recipient,
-        address strategy,
+        IStrategyBase strategy,
         uint256 shares,
-        IERC20 weth
+        IERC20 tokenAddress
     ) external onlyDelegationManager {
-        uint256 l1BackShares = stakerStrategyL1BackShares[recipient][strategy];
-        require(
-            l1BackShares >= shares,
-            "StrategyManager.withdrawSharesAsWeth: The Layer1 of DETH hasn't been completely released yet"
-        );
-        getStrategy(strategy).withdraw(recipient, weth, shares);
+        strategy.withdraw(recipient, tokenAddress, shares);
     }
 
-    function getStakerStrategyShares(address user, address strategy) external view returns (uint256 shares) {
+    function getStakerStrategyShares(address user, IStrategyBase strategy) external view returns (uint256 shares) {
         return stakerStrategyShares[user][strategy];
     }
 
@@ -115,7 +115,7 @@ contract StrategyManager is StrategyManagerStorage {
     }
 
     function addStrategiesToDepositWhitelist(
-        address[] calldata strategiesToWhitelist,
+        IStrategyBase[] calldata strategiesToWhitelist,
         bool[] calldata thirdPartyTransfersForbiddenValues
     ) external onlyStrategyWhitelister {
         require(
@@ -136,7 +136,7 @@ contract StrategyManager is StrategyManagerStorage {
     }
 
     function removeStrategiesFromDepositWhitelist(
-        address[] calldata strategiesToRemoveFromWhitelist
+        IStrategyBase[] calldata strategiesToRemoveFromWhitelist
     ) external onlyStrategyWhitelister {
         uint256 strategiesToRemoveFromWhitelistLength = strategiesToRemoveFromWhitelist.length;
         for (uint256 i = 0; i < strategiesToRemoveFromWhitelistLength; ) {
@@ -152,7 +152,7 @@ contract StrategyManager is StrategyManagerStorage {
     }
 
     // INTERNAL FUNCTIONS
-    function _addShares(address staker, IERC20 weth, address strategy, uint256 shares) internal {
+    function _addShares(address staker, IERC20 weth, IStrategyBase strategy, uint256 shares) internal {
         require(staker != address(0), "StrategyManager._addShares: staker cannot be zero address");
         require(shares != 0, "StrategyManager._addShares: shares should not be zero!");
 
@@ -171,24 +171,24 @@ contract StrategyManager is StrategyManagerStorage {
 
     function _depositIntoStrategy(
         address staker,
-        address strategy,
+        IStrategyBase strategy,
         IERC20 tokenAddress,
         uint256 amount
     ) internal onlyStrategiesWhitelistedForDeposit(strategy) returns (uint256 shares) {
-        weth.safeTransferFrom(msg.sender, strategy, amount);
+        tokenAddress.safeTransferFrom(msg.sender, address(strategy), amount);
 
-        shares = getStrategy(strategy).deposit(tokenAddress, amount);
+        shares = strategy.deposit(tokenAddress, amount);
 
         _addShares(staker, tokenAddress, strategy, shares);
 
-        getDelegationManager().increaseDelegatedShares(staker, strategy, shares);
+        delegation.increaseDelegatedShares(staker, strategy, shares);
 
         return shares;
     }
 
     function _removeShares(
         address staker,
-        address strategy,
+        IStrategyBase strategy,
         uint256 shareAmount
     ) internal returns (bool) {
         require(shareAmount != 0, "StrategyManager._removeShares: shareAmount should not be zero!");
@@ -212,7 +212,7 @@ contract StrategyManager is StrategyManagerStorage {
 
     function _removeStrategyFromStakerStrategyList(
         address staker,
-        address strategy
+        IStrategyBase strategy
     ) internal {
         uint256 stratsLength = stakerStrategyList[staker].length;
         uint256 j = 0;
@@ -229,7 +229,7 @@ contract StrategyManager is StrategyManagerStorage {
         stakerStrategyList[staker].pop();
     }
 
-    function _setThirdPartyTransfersForbidden(address strategy, bool value) internal {
+    function _setThirdPartyTransfersForbidden(IStrategyBase strategy, bool value) internal {
         emit UpdatedThirdPartyTransfersForbidden(strategy, value);
         thirdPartyTransfersForbidden[strategy] = value;
     }
@@ -240,7 +240,7 @@ contract StrategyManager is StrategyManagerStorage {
     }
 
     // VIEW FUNCTIONS
-    function getDeposits(address staker) external view returns (address[] memory, uint256[] memory) {
+    function getDeposits(address staker) external view returns (IStrategyBase[] memory, uint256[] memory) {
         uint256 strategiesLength = stakerStrategyList[staker].length;
         uint256[] memory shares = new uint256[](strategiesLength);
         for (uint256 i = 0; i < strategiesLength; ) {
@@ -291,7 +291,7 @@ contract StrategyManager is StrategyManagerStorage {
         _;
     }
 
-    modifier onlyStrategiesWhitelistedForDeposit(address strategy) {
+    modifier onlyStrategiesWhitelistedForDeposit(IStrategyBase strategy) {
         require(
             strategyIsWhitelistedForDeposit[strategy],
             "StrategyManager.onlyStrategiesWhitelistedForDeposit: strategy not whitelisted"

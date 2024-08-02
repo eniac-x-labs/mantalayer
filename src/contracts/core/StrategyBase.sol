@@ -6,12 +6,14 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
+import "@/access/Pausable.sol";
+
 import "../interfaces/IStrategyBase.sol";
 import "../interfaces/IStrategyManager.sol";
 import "../../access/interfaces/IPauserRegistry.sol";
 
 
-contract StrategyBase is Initializable,IStrategyBase {
+contract StrategyBase is Initializable,IStrategyBase, Pausable {
     using SafeERC20 for IERC20;
 
     uint8 internal constant PAUSED_DEPOSITS = 0;
@@ -54,7 +56,7 @@ contract StrategyBase is Initializable,IStrategyBase {
     function deposit(
         IERC20 token,
         uint256 amount
-    ) external virtual override onlyWhenNotPaused(PAUSED_DEPOSITS) onlyStrategyManager returns (uint256 newShares) {
+    ) external virtual override onlyStrategyManager returns (uint256 newShares) {
         _beforeDeposit(token, amount);
 
         uint256 priorTotalShares = totalShares;
@@ -75,7 +77,7 @@ contract StrategyBase is Initializable,IStrategyBase {
         address recipient,
         IERC20 token,
         uint256 amountShares
-    ) external virtual override onlyWhenNotPaused(PAUSED_WITHDRAWALS) onlyStrategyManager {
+    ) external virtual override onlyStrategyManager {
         _beforeWithdrawal(recipient, token, amountShares);
 
         uint256 priorTotalShares = totalShares;
@@ -140,7 +142,7 @@ contract StrategyBase is Initializable,IStrategyBase {
     }
 
     function shares(address user) public view virtual returns (uint256) {
-        return strategyManager.stakerStrategyShares(user, IStrategy(address(this)));
+        return strategyManager.stakerStrategyShares(user, IStrategyBase(address(this)));
     }
 
     function _tokenBalance() internal view virtual returns (uint256) {

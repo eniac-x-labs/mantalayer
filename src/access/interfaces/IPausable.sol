@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.5.0;
 
-import "../interfaces/IPauserRegistry.sol";
+import "@/access/interfaces/IPauserRegistry.sol";
 
 interface IPausable {
     event PauserRegistrySet(IPauserRegistry pauserRegistry, IPauserRegistry newPauserRegistry);

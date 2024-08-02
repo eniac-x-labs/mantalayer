@@ -2,20 +2,24 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IStrategyBase} from "./IStrategyBase.sol";
 
 interface IStrategyManager {
-    event Deposit(address staker, IERC20 weth, address strategy, uint256 shares);
+    event Deposit(address staker, IERC20 weth, IStrategyBase strategy, uint256 shares);
+
+    event UpdatedThirdPartyTransfersForbidden(IStrategyBase strategy, bool value);
+
 
     event StrategyWhitelisterChanged(address previousAddress, address newAddress);
 
-    event StrategyAddedToDepositWhitelist(address strategy);
+    event StrategyAddedToDepositWhitelist(IStrategyBase strategy);
 
-    event StrategyRemovedFromDepositWhitelist(address strategy);
+    event StrategyRemovedFromDepositWhitelist(IStrategyBase strategy);
 
-    function depositIntoStrategy(address strategy, IERC20 tokenAddress, uint256 amount) external returns (uint256 shares);
+    function depositIntoStrategy(IStrategyBase strategy, IERC20 tokenAddress, uint256 amount) external returns (uint256 shares);
 
     function depositIntoStrategyWithSignature(
-        address strategy,
+        IStrategyBase strategy,
         IERC20 tokenAddress,
         uint256 amount,
         address staker,
@@ -23,26 +27,28 @@ interface IStrategyManager {
         bytes memory signature
     ) external returns (uint256 shares);
 
-    function removeShares(address staker, address strategy, uint256 shares) external;
+    function removeShares(address staker, IStrategyBase strategy, uint256 shares) external;
 
-    function addShares(address staker, IERC20 weth, address strategy, uint256 shares) external;
+    function addShares(address staker, IERC20 weth, IStrategyBase strategy, uint256 shares) external;
 
-    function withdrawSharesAsWeth(address recipient, address strategy, uint256 shares, IERC20 weth) external;
+    function withdrawSharesAsTokens(address recipient, IStrategyBase strategy, uint256 shares, IERC20 tokenAddress) external;
 
-    function getStakerStrategyShares(address user, address strategy) external view returns (uint256 shares);
+    function stakerStrategyShares(address user, IStrategyBase strategy) external view returns (uint256 shares);
 
-    function getDeposits(address staker) external view returns (address[] memory, uint256[] memory);
+    function getDeposits(address staker) external view returns (IStrategyBase[] memory, uint256[] memory);
 
     function stakerStrategyListLength(address staker) external view returns (uint256);
 
     function addStrategiesToDepositWhitelist(
-        address[] calldata strategiesToWhitelist,
+        IStrategyBase[] calldata strategiesToWhitelist,
         bool[] calldata thirdPartyTransfersForbiddenValues
     ) external;
 
-    function removeStrategiesFromDepositWhitelist(address[] calldata strategiesToRemoveFromWhitelist) external;
+    function removeStrategiesFromDepositWhitelist(IStrategyBase[] calldata strategiesToRemoveFromWhitelist) external;
 
     function strategyWhitelister() external view returns (address);
+
+    function thirdPartyTransfersForbidden(IStrategyBase strategy) external view returns (bool);
 
     struct DeprecatedStruct_WithdrawerAndNonce {
         address withdrawer;
@@ -50,7 +56,7 @@ interface IStrategyManager {
     }
 
     struct DeprecatedStruct_QueuedWithdrawal {
-        address[] strategies;
+        IStrategyBase[] strategies;
         uint256[] shares;
         address staker;
         DeprecatedStruct_WithdrawerAndNonce withdrawerAndNonce;

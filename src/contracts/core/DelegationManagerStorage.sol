@@ -16,13 +16,15 @@ abstract contract DelegationManagerStorage is IDelegationManager {
     bytes32 public constant DELEGATION_APPROVAL_TYPEHASH =
     keccak256("DelegationApproval(address staker,address operator,address delegationApprover,bytes32 salt,uint256 expiry)");
 
+    IStrategyManager public immutable strategyManager;
+
     bytes32 internal _DOMAIN_SEPARATOR;
 
     uint256 public constant MAX_WITHDRAWAL_DELAY_BLOCKS = 216000;
 
-    mapping(address => mapping(address => uint256)) public operatorShares;
+    mapping(address => mapping(IStrategyBase => uint256)) public operatorShares;
 
-    mapping(address => mapping(address => mapping(address => uint256))) public stakerStrategyOperatorShares;
+    mapping(address => mapping(IStrategyBase => mapping(address => uint256))) public stakerStrategyOperatorShares;
 
     mapping(address => OperatorDetails) internal _operatorDetails;
 
@@ -40,7 +42,11 @@ abstract contract DelegationManagerStorage is IDelegationManager {
 
     address private __deprecated_stakeRegistry;
 
-    mapping(address => uint256) public strategyWithdrawalDelayBlocks;
+    mapping(IStrategyBase => uint256) public strategyWithdrawalDelayBlocks;
+
+    constructor(IStrategyManager _strategyManager) {
+        strategyManager = _strategyManager;
+    }
 
     uint256[100] private __gap;
 }

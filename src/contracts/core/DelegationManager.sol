@@ -358,15 +358,15 @@ contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuard
     ) internal {
         bytes32 withdrawalRoot = calculateWithdrawalRoot(withdrawal);
 
-        // require(
-        //     pendingWithdrawals[withdrawalRoot],
-        //     "DelegationManager._completeQueuedWithdrawal: action is not in queue"
-        // );
+         require(
+             pendingWithdrawals[withdrawalRoot],
+             "DelegationManager._completeQueuedWithdrawal: action is not in queue"
+         );
 
-        // require(
-        //     withdrawal.startBlock + minWithdrawalDelayBlocks <= block.number,
-        //     "DelegationManager._completeQueuedWithdrawal: minWithdrawalDelayBlocks period has not yet passed"
-        // );
+         require(
+             withdrawal.startBlock + minWithdrawalDelayBlocks <= block.number,
+             "DelegationManager._completeQueuedWithdrawal: minWithdrawalDelayBlocks period has not yet passed"
+         );
 
         require(
             msg.sender == withdrawal.withdrawer,
@@ -381,7 +381,6 @@ contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuard
                     withdrawal.startBlock + strategyWithdrawalDelayBlocks[withdrawal.strategies[i]] <= block.number,
                     "DelegationManager._completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed for this strategy"
                 );
-
                 _withdrawSharesAsTokens({
                     withdrawer: msg.sender,
                     strategy: withdrawal.strategies[i],
@@ -392,12 +391,11 @@ contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuard
                 emit WithdrawalCompleted(currentOperator, msg.sender, withdrawal.strategies[i], withdrawal.shares[i]);
             }
         } else {
-
             for (uint256 i = 0; i < withdrawal.strategies.length; ) {
-                // require(
-                //     withdrawal.startBlock + strategyWithdrawalDelayBlocks[withdrawal.strategies[i]] <= block.number,
-                //     "DelegationManager._completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed for this strategy"
-                // );
+                 require(
+                     withdrawal.startBlock + strategyWithdrawalDelayBlocks[withdrawal.strategies[i]] <= block.number,
+                     "DelegationManager._completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed for this strategy"
+                 );
                 strategyManager.addShares(msg.sender, weth, withdrawal.strategies[i], withdrawal.shares[i]);
                 if (currentOperator != address(0)) {
                     _increaseOperatorShares({
@@ -411,7 +409,6 @@ contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuard
                 emit WithdrawalCompleted(currentOperator, msg.sender, withdrawal.strategies[i], withdrawal.shares[i]);
             }
         }
-        // emit WithdrawalCompleted(withdrawalRoot);
     }
 
     function _increaseOperatorShares(address operator, address staker, IStrategyBase strategy, uint256 shares) internal {

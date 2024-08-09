@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 
 import "../interfaces/IStrategyManager.sol";
 import "../interfaces/IDelegationManager.sol";
-import "../interfaces/ISlashManager.sol";
 
 abstract contract StrategyManagerStorage is IStrategyManager {
     bytes32 public constant DOMAIN_TYPEHASH =

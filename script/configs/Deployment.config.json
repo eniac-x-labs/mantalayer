@@ -1,0 +1,43 @@
+{
+  "chainInfo": {
+    "chainId": 169
+  },
+  "multisig_addresses": {
+    "pauserMultisig": "0x0000000000000000000000000000000000000000",
+    "communityMultisig": "0x0000000000000000000000000000000000000000",
+    "operationsMultisig": "0x0000000000000000000000000000000000000000",
+    "executorMultisig": "0x0000000000000000000000000000000000000000",
+    "timelock": "0x0000000000000000000000000000000000000000"
+  },
+  "strategies": {
+    "numStrategies": 2,
+    "MAX_PER_DEPOSIT": 115792089237316195423570985008687907853269984665640564039457584007913129639935,
+    "MAX_TOTAL_DEPOSITS": 115792089237316195423570985008687907853269984665640564039457584007913129639935,
+    "strategiesToDeploy": [
+      {
+        "token_address": "0x6E9655611b42C10b9aF25B6ca08bE349Df45c370",
+        "token_name": "Rocket Pool ETH",
+        "token_symbol": "rETH"
+      },
+      {
+        "token_address": "0x0Dc808adcE2099A9F62AA87D9670745AbA741746",
+        "token_name": "Wrapped Ether",
+        "token_symbol": "WETH"
+      }
+    ]
+  },
+  "strategyManager": {
+    "init_strategy_whitelister": "0x0000000000000000000000000000000000000000",
+    "init_paused_status": 0
+  },
+  "delegationManager": {
+    "init_paused_status": 0,
+    "init_minWithdrawalDelayBlocks": 50400
+  },
+  "delayedWithdrawalRouter": {
+    "init_paused_status": 0,
+    "init_withdrawalDelayBlocks": 50400
+  },
+  "ethPOSDepositAddress": "0x4242424242424242424242424242424242424242",
+  "beaconOracleAddress": "0x4C116BB629bff7A8373c2378bBd919f8349B8f25"
+}

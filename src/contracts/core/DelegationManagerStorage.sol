@@ -3,8 +3,6 @@ pragma solidity ^0.8.24;
 
 import "../interfaces/IStrategyManager.sol";
 import "../interfaces/IDelegationManager.sol";
-import "../interfaces/ISlashManager.sol";
-
 
 abstract contract DelegationManagerStorage is IDelegationManager {
     bytes32 public constant DOMAIN_TYPEHASH =
@@ -18,13 +16,15 @@ abstract contract DelegationManagerStorage is IDelegationManager {
 
     IStrategyManager public immutable strategyManager;
 
+    // `slasher` is removed
+
     bytes32 internal _DOMAIN_SEPARATOR;
 
     uint256 public constant MAX_WITHDRAWAL_DELAY_BLOCKS = 216000;
 
     mapping(address => mapping(IStrategyBase => uint256)) public operatorShares;
 
-    mapping(address => mapping(IStrategyBase => mapping(address => uint256))) public stakerStrategyOperatorShares;
+    mapping(address => mapping(IStrategyBase => mapping(address => uint256))) public stakerStrategyOperatorShares;      // Note newly added
 
     mapping(address => OperatorDetails) internal _operatorDetails;
 
@@ -44,7 +44,7 @@ abstract contract DelegationManagerStorage is IDelegationManager {
 
     mapping(IStrategyBase => uint256) public strategyWithdrawalDelayBlocks;
 
-    constructor(IStrategyManager _strategyManager) {
+    constructor(IStrategyManager _strategyManager) {    // Note Modified
         strategyManager = _strategyManager;
     }
 

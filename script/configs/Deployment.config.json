@@ -34,6 +34,20 @@
     "init_paused_status": 0,
     "init_minWithdrawalDelayBlocks": 50400
   },
+  "rewardManager": {
+    "init_paused_status": 0,
+    "CALCULATION_INTERVAL_SECONDS": 604800,
+    "MAX_REWARDS_DURATION": 6048000,
+    "MAX_RETROACTIVE_LENGTH": 7776000,
+    "MAX_FUTURE_LENGTH": 2592000,
+    "GENESIS_REWARDS_TIMESTAMP": 1710979200,
+    "rewards_updater_address": "0x0000000000000000000000000000000000000000",
+    "activation_delay": 7200,
+    "calculation_interval_seconds": 604800,
+    "global_operator_commission_bips": 1000,
+    "reward_token_address": "0x0000000000000000000000000000000000000000",
+    "stake_percentage": "1"
+  },
   "delayedWithdrawalRouter": {
     "init_paused_status": 0,
     "init_withdrawalDelayBlocks": 50400

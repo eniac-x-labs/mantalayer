@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "../../src/contracts/core/StrategyManager.sol";
 import "../../src/contracts/core/DelegationManager.sol";
@@ -61,15 +62,17 @@ contract ExistingDeploymentParser is Script, Test {
     uint256 DELEGATION_MANAGER_INIT_PAUSED_STATUS;
     uint256 DELEGATION_MANAGER_MIN_WITHDRAWAL_DELAY_BLOCKS;
     // RewardManager
-    uint256 REWARDS_COORDINATOR_INIT_PAUSED_STATUS;
-    uint32 REWARDS_COORDINATOR_MAX_REWARDS_DURATION;
-    uint32 REWARDS_COORDINATOR_MAX_RETROACTIVE_LENGTH;
-    uint32 REWARDS_COORDINATOR_MAX_FUTURE_LENGTH;
-    uint32 REWARDS_COORDINATOR_GENESIS_REWARDS_TIMESTAMP;
-    address REWARDS_COORDINATOR_UPDATER;
-    uint32 REWARDS_COORDINATOR_ACTIVATION_DELAY;
-    uint32 REWARDS_COORDINATOR_CALCULATION_INTERVAL_SECONDS;
-    uint32 REWARDS_COORDINATOR_GLOBAL_OPERATOR_COMMISSION_BIPS;
+    uint256 REWARD_MANAGER_INIT_PAUSED_STATUS;
+    uint32 REWARD_MANAGER_MAX_REWARDS_DURATION;
+    uint32 REWARD_MANAGER_MAX_RETROACTIVE_LENGTH;
+    uint32 REWARD_MANAGER_MAX_FUTURE_LENGTH;
+    uint32 REWARD_MANAGER_GENESIS_REWARDS_TIMESTAMP;
+    address REWARD_MANAGER_UPDATER;
+    uint32 REWARD_MANAGER_ACTIVATION_DELAY;
+    uint32 REWARD_MANAGER_CALCULATION_INTERVAL_SECONDS;
+    uint32 REWARD_MANAGER_GLOBAL_OPERATOR_COMMISSION_BIPS;
+    address REWARD_MANAGER_RWARD_TOKEN_ADDRESS;
+    uint32 REWARD_MANAGER_STAKE_PERCENTAGE;
 
     // one week in blocks -- 50400
     uint32 DELAYED_WITHDRAWAL_ROUTER_INIT_WITHDRAWAL_DELAY_BLOCKS;
@@ -196,20 +199,22 @@ contract ExistingDeploymentParser is Script, Test {
             ".delegationManager.init_paused_status"
         );
         // RewardManager
-        REWARDS_COORDINATOR_INIT_PAUSED_STATUS = stdJson.readUint(
+        REWARD_MANAGER_INIT_PAUSED_STATUS = stdJson.readUint(
             initialDeploymentData,
             ".rewardManager.init_paused_status"
         );
-        REWARDS_COORDINATOR_CALCULATION_INTERVAL_SECONDS = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.CALCULATION_INTERVAL_SECONDS"));
-        REWARDS_COORDINATOR_MAX_REWARDS_DURATION = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.MAX_REWARDS_DURATION"));
-        REWARDS_COORDINATOR_MAX_RETROACTIVE_LENGTH = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.MAX_RETROACTIVE_LENGTH"));
-        REWARDS_COORDINATOR_MAX_FUTURE_LENGTH = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.MAX_FUTURE_LENGTH"));
-        REWARDS_COORDINATOR_GENESIS_REWARDS_TIMESTAMP = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.GENESIS_REWARDS_TIMESTAMP"));
-        REWARDS_COORDINATOR_UPDATER = stdJson.readAddress(initialDeploymentData, ".rewardManager.rewards_updater_address");
-        REWARDS_COORDINATOR_ACTIVATION_DELAY = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.activation_delay"));
-        REWARDS_COORDINATOR_GLOBAL_OPERATOR_COMMISSION_BIPS = uint32(
+        REWARD_MANAGER_CALCULATION_INTERVAL_SECONDS = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.CALCULATION_INTERVAL_SECONDS"));
+        REWARD_MANAGER_MAX_REWARDS_DURATION = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.MAX_REWARDS_DURATION"));
+        REWARD_MANAGER_MAX_RETROACTIVE_LENGTH = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.MAX_RETROACTIVE_LENGTH"));
+        REWARD_MANAGER_MAX_FUTURE_LENGTH = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.MAX_FUTURE_LENGTH"));
+        REWARD_MANAGER_GENESIS_REWARDS_TIMESTAMP = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.GENESIS_REWARDS_TIMESTAMP"));
+        REWARD_MANAGER_UPDATER = stdJson.readAddress(initialDeploymentData, ".rewardManager.rewards_updater_address");
+        REWARD_MANAGER_ACTIVATION_DELAY = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.activation_delay"));
+        REWARD_MANAGER_GLOBAL_OPERATOR_COMMISSION_BIPS = uint32(
             stdJson.readUint(initialDeploymentData, ".rewardManager.global_operator_commission_bips")
         );
+        REWARD_MANAGER_RWARD_TOKEN_ADDRESS = stdJson.readAddress(initialDeploymentData, ".rewardManager.reward_token_address");
+        REWARD_MANAGER_STAKE_PERCENTAGE = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.stake_percentage"));
 
         logInitialDeploymentParams();
     }
@@ -241,29 +246,25 @@ contract ExistingDeploymentParser is Script, Test {
     /// Note that the instance of ProxyAdmin can no longer invoke {getProxyImplementation} in the dependencies from the latest version of OpenZeppelin
     // function _verifyImplementations() internal view virtual {
     //     require(
-    //         mantaLayerProxyAdmin.getProxyImplementation(
-    //             TransparentUpgradeableProxy(payable(address(rewardManager)))
-    //         ) == address(rewardManagerImplementation),
+    //         TransparentUpgradeableProxy(payable(address(rewardManager)))._implementation()
+    //          == address(rewardManagerImplementation),
     //         "rewardManager: implementation set incorrectly"
     //     );
     //     require(
-    //         mantaLayerProxyAdmin.getProxyImplementation(
-    //             TransparentUpgradeableProxy(payable(address(delegationManager)))
-    //         ) == address(delegationManagerImplementation),
+    //         TransparentUpgradeableProxy(payable(address(delegationManager)))._implementation()
+    //         == address(delegationManagerImplementation),
     //         "delegationManager: implementation set incorrectly"
     //     );
     //     require(
-    //         mantaLayerProxyAdmin.getProxyImplementation(
-    //             TransparentUpgradeableProxy(payable(address(strategyManager)))
-    //         ) == address(strategyManagerImplementation),
+    //         TransparentUpgradeableProxy(payable(address(strategyManager)))._implementation()
+    //         == address(strategyManagerImplementation),
     //         "strategyManager: implementation set incorrectly"
     //     );
 
     //     for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
     //         require(
-    //             mantaLayerProxyAdmin.getProxyImplementation(
-    //                 TransparentUpgradeableProxy(payable(address(deployedStrategyArray[i])))
-    //             ) == address(baseStrategyImplementation),
+    //             TransparentUpgradeableProxy(payable(address(deployedStrategyArray[i])))._implementation()
+    //             == address(baseStrategyImplementation),
     //             "strategy: implementation set incorrectly"
     //         );
     //     }
@@ -382,8 +383,7 @@ contract ExistingDeploymentParser is Script, Test {
             DELEGATION_MANAGER_MIN_WITHDRAWAL_DELAY_BLOCKS
         );
         emit log_named_uint("DELEGATION_MANAGER_INIT_PAUSED_STATUS", DELEGATION_MANAGER_INIT_PAUSED_STATUS);
-        emit log_named_uint("REWARDS_COORDINATOR_INIT_PAUSED_STATUS", REWARDS_COORDINATOR_INIT_PAUSED_STATUS);
-        // todo log all rewards coordinator params
+        emit log_named_uint("REWARD_MANAGER_INIT_PAUSED_STATUS", REWARD_MANAGER_INIT_PAUSED_STATUS);
         emit log_named_uint(
             "DELAYED_WITHDRAWAL_ROUTER_INIT_WITHDRAWAL_DELAY_BLOCKS",
             DELAYED_WITHDRAWAL_ROUTER_INIT_WITHDRAWAL_DELAY_BLOCKS

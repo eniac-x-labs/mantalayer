@@ -93,7 +93,7 @@ contract DeployerBasic is ExistingDeploymentParser {
         );
 
         // Deploy Strategies
-        baseStrategyImplementation = new StrategyBaseTVLLimits(strategyManager);
+        baseStrategyImplementation = new StrategyBase(strategyManager);
         uint256 numStrategiesToDeploy = strategiesToDeploy.length;
         // whitelist params
         IStrategyBase[] memory strategiesToWhitelist = new IStrategyBase[](numStrategiesToDeploy);
@@ -103,14 +103,14 @@ contract DeployerBasic is ExistingDeploymentParser {
             StrategyUnderlyingTokenConfig memory strategyConfig = strategiesToDeploy[i];
 
             // Deploy and upgrade strategy
-            StrategyBaseTVLLimits strategy = StrategyBaseTVLLimits(
+            StrategyBase strategy = StrategyBase(
                 address(new TransparentUpgradeableProxy(address(emptyContract), address(mantaLayerProxyAdmin), ""))
             );
             mantaLayerProxyAdmin.upgradeAndCall(
                 ITransparentUpgradeableProxy(payable(address(strategy))),
                 address(baseStrategyImplementation),
                 abi.encodeWithSelector(
-                    StrategyBaseTVLLimits.initialize.selector,
+                    StrategyBase.initialize.selector,
                     STRATEGY_MAX_PER_DEPOSIT,
                     STRATEGY_MAX_TOTAL_DEPOSITS,
                     IERC20(strategyConfig.tokenAddress),

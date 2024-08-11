@@ -11,7 +11,6 @@ import "../../src/contracts/core/DelegationManager.sol";
 import "../../src/contracts/core/RewardManager.sol";
 
 import "../../src/contracts/core/StrategyBase.sol";
-import "../../src/contracts/core/StrategyBaseTVLLimits.sol";
 
 import "../../src/access/PauserRegistry.sol";
 
@@ -301,11 +300,11 @@ contract ExistingDeploymentParser is Script, Test {
         // Strategies
         for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
             vm.expectRevert(bytes("Initializable: contract is already initialized"));
-            StrategyBaseTVLLimits(address(deployedStrategyArray[i])).initialize(
-                0,
-                0,
+            StrategyBase(address(deployedStrategyArray[i])).initialize(
                 IERC20(address(0)),
-                mantaLayerPauserReg
+                mantaLayerPauserReg,
+                0,
+                0
             );
         }
     }
@@ -349,15 +348,15 @@ contract ExistingDeploymentParser is Script, Test {
         for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
             require(
                 deployedStrategyArray[i].pauserRegistry() == mantaLayerPauserReg,
-                "StrategyBaseTVLLimits: pauser registry not set correctly"
+                "StrategyBase: pauser registry not set correctly"
             );
             require(
                 deployedStrategyArray[i].paused() == 0,
-                "StrategyBaseTVLLimits: init paused status set incorrectly"
+                "StrategyBase: init paused status set incorrectly"
             );
             require(
                 strategyManager.strategyIsWhitelistedForDeposit(deployedStrategyArray[i]),
-                "StrategyBaseTVLLimits: strategy should be whitelisted"
+                "StrategyBase: strategy should be whitelisted"
             );
         }
 

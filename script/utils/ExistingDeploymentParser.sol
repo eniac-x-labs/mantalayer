@@ -30,15 +30,22 @@ contract ExistingDeploymentParser is Script, Test {
     ProxyAdmin public mantaLayerProxyAdmin;
     PauserRegistry public mantaLayerPauserReg;
     DelegationManager public delegationManager;
+    ProxyAdmin public delegationManagerProxyAdmin;
     DelegationManager public delegationManagerImplementation;
     StrategyManager public strategyManager;
+    ProxyAdmin public strategyManagerProxyAdmin;
     StrategyManager public strategyManagerImplementation;
     RewardManager public rewardManager;
+    ProxyAdmin public rewardManagerProxyAdmin;
     RewardManager public rewardManagerImplementation;
+    ProxyAdmin public strategyBaseProxyAdmin;
     StrategyBase public baseStrategyImplementation;
     UpgradeableBeacon public strategyBeacon;
 
     EmptyContract public emptyContract;
+
+    // Reward Token
+    address public rewardTokenAddress;
 
     address executorMultisig;
     address operationsMultisig;
@@ -243,31 +250,28 @@ contract ExistingDeploymentParser is Script, Test {
 
     /// @notice verify implementations for Transparent Upgradeable Proxies
     /// Note that the instance of ProxyAdmin can no longer invoke {getProxyImplementation} in the dependencies from the latest version of OpenZeppelin
-    // function _verifyImplementations() internal view virtual {
-    //     require(
-    //         TransparentUpgradeableProxy(payable(address(rewardManager)))._implementation()
-    //          == address(rewardManagerImplementation),
-    //         "rewardManager: implementation set incorrectly"
-    //     );
-    //     require(
-    //         TransparentUpgradeableProxy(payable(address(delegationManager)))._implementation()
-    //         == address(delegationManagerImplementation),
-    //         "delegationManager: implementation set incorrectly"
-    //     );
-    //     require(
-    //         TransparentUpgradeableProxy(payable(address(strategyManager)))._implementation()
-    //         == address(strategyManagerImplementation),
-    //         "strategyManager: implementation set incorrectly"
-    //     );
+    function _verifyImplementations() internal view virtual {
+        require(
+            getImplementationAddress(address(rewardManager)) == address(rewardManagerImplementation),
+            "rewardManager: implementation set incorrectly"
+        );
+        require(
+            getImplementationAddress(address(delegationManager)) == address(delegationManagerImplementation),
+            "delegationManager: implementation set incorrectly"
+        );
+        require(
+            getImplementationAddress(address(strategyManager)) == address(strategyManagerImplementation),
+            "strategyManager: implementation set incorrectly"
+        );
 
-    //     for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
-    //         require(
-    //             TransparentUpgradeableProxy(payable(address(deployedStrategyArray[i])))._implementation()
-    //             == address(baseStrategyImplementation),
-    //             "strategy: implementation set incorrectly"
-    //         );
-    //     }
-    // }
+        // for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
+        //     require(
+        //         TransparentUpgradeableProxy(payable(address(deployedStrategyArray[i])))._implementation()
+        //         == address(baseStrategyImplementation),
+        //         "strategy: implementation set incorrectly"
+        //     );
+        // }
+    }
 
     /**
      * @notice Verify initialization of Transparent Upgradeable Proxies. Also check
@@ -276,14 +280,14 @@ contract ExistingDeploymentParser is Script, Test {
      */
     function _verifyContractsInitialized(bool isInitialDeployment) internal virtual {
         // RewardManager
-        vm.expectRevert(bytes("Initializable: contract is already initialized"));
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
         rewardManager.initialize(
             executorMultisig,
             executorMultisig,
             executorMultisig
         );
         // DelegationManager
-        vm.expectRevert(bytes("Initializable: contract is already initialized"));
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
         IStrategyBase[] memory initializeStrategiesToSetDelayBlocks = new IStrategyBase[](0);
         uint256[] memory initializeWithdrawalDelayBlocks = new uint256[](0);
         delegationManager.initialize(
@@ -295,11 +299,11 @@ contract ExistingDeploymentParser is Script, Test {
             initializeWithdrawalDelayBlocks
         );
         // StrategyManager
-        vm.expectRevert(bytes("Initializable: contract is already initialized"));
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
         strategyManager.initialize(address(0), address(0));
         // Strategies
         for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
-            vm.expectRevert(bytes("Initializable: contract is already initialized"));
+            vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
             StrategyBase(address(deployedStrategyArray[i])).initialize(
                 IERC20(address(0)),
                 mantaLayerPauserReg,
@@ -470,5 +474,23 @@ contract ExistingDeploymentParser is Script, Test {
         string memory finalJson = vm.serializeString(parent_object, parameters, parameters_output);
 
         vm.writeJson(finalJson, outputPath);
+    }
+
+    function getProxyAdminAddress(address proxy) internal view returns (address) {
+        // Cheatcode address of Foundry
+        address CHEATCODE_ADDRESS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
+        Vm vm = Vm(CHEATCODE_ADDRESS);
+
+        bytes32 adminSlot = vm.load(proxy, ERC1967Utils.ADMIN_SLOT);
+        return address(uint160(uint256(adminSlot)));
+    }
+
+    function getImplementationAddress(address proxy) internal view returns (address) {
+        // Cheatcode address of Foundry
+        address CHEATCODE_ADDRESS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
+        Vm vm = Vm(CHEATCODE_ADDRESS);
+
+        bytes32 implementationSlot = vm.load(proxy, ERC1967Utils.IMPLEMENTATION_SLOT);
+        return address(uint160(uint256(implementationSlot)));
     }
 }

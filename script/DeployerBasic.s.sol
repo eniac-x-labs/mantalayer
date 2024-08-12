@@ -25,7 +25,7 @@ contract DeployerBasic is ExistingDeploymentParser {
 
         // Sanity Checks
         _verifyContractPointers();
-        // _verifyImplementations();
+        _verifyImplementations();
         _verifyContractsInitialized({isInitialDeployment: true});
         _verifyInitializationParams();
 
@@ -52,12 +52,12 @@ contract DeployerBasic is ExistingDeploymentParser {
          * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
          */
         emptyContract = new EmptyContract();
-        delegationManager = DelegationManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(mantaLayerProxyAdmin), ""))
-        );
-        strategyManager = StrategyManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(mantaLayerProxyAdmin), ""))
-        );
+        TransparentUpgradeableProxy delegationManagerProxyInstance = new TransparentUpgradeableProxy(address(emptyContract), executorMultisig, "");
+        delegationManager = DelegationManager(address(delegationManagerProxyInstance));
+        delegationManagerProxyAdmin = ProxyAdmin(getProxyAdminAddress(address(delegationManagerProxyInstance)));
+        TransparentUpgradeableProxy strategyManagerProxyInstance = new TransparentUpgradeableProxy(address(emptyContract), executorMultisig, "");
+        strategyManager = StrategyManager(address(strategyManagerProxyInstance));
+        strategyManagerProxyAdmin = ProxyAdmin(getProxyAdminAddress(address(strategyManagerProxyInstance)));
         delegationManagerImplementation = new DelegationManager(strategyManager);
         strategyManagerImplementation = new StrategyManager(delegationManager);
 
@@ -66,7 +66,7 @@ contract DeployerBasic is ExistingDeploymentParser {
         uint256[] memory initializeWithdrawalDelayBlocks = new uint256[](0);
 
         // DelegationManager
-        mantaLayerProxyAdmin.upgradeAndCall(
+        delegationManagerProxyAdmin.upgradeAndCall(
             ITransparentUpgradeableProxy(payable(address(delegationManager))),
             address(delegationManagerImplementation),
             abi.encodeWithSelector(
@@ -80,7 +80,7 @@ contract DeployerBasic is ExistingDeploymentParser {
             )
         );
         // StrategyManager
-        mantaLayerProxyAdmin.upgradeAndCall(
+        strategyManagerProxyAdmin.upgradeAndCall(
             ITransparentUpgradeableProxy(payable(address(strategyManager))),
             address(strategyManagerImplementation),
             abi.encodeWithSelector(
@@ -94,7 +94,6 @@ contract DeployerBasic is ExistingDeploymentParser {
 
         // Deploy Strategies
         baseStrategyImplementation = new StrategyBase(strategyManager);
-        uint256 numStrategiesToDeploy = strategiesToDeploy.length;
         // whitelist params
         IStrategyBase[] memory strategiesToWhitelist = new IStrategyBase[](numStrategiesToDeploy);
         bool[] memory thirdPartyTransfersForbiddenValues = new bool[](numStrategiesToDeploy);
@@ -103,18 +102,18 @@ contract DeployerBasic is ExistingDeploymentParser {
             StrategyUnderlyingTokenConfig memory strategyConfig = strategiesToDeploy[i];
 
             // Deploy and upgrade strategy
-            StrategyBase strategy = StrategyBase(
-                address(new TransparentUpgradeableProxy(address(emptyContract), address(mantaLayerProxyAdmin), ""))
-            );
-            mantaLayerProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy strategyBaseProxyInstance = new TransparentUpgradeableProxy(address(emptyContract), executorMultisig, "");
+            StrategyBase strategy = StrategyBase(address(strategyBaseProxyInstance));
+            strategyBaseProxyAdmin = ProxyAdmin(getProxyAdminAddress(address(strategyBaseProxyInstance)));
+            strategyBaseProxyAdmin.upgradeAndCall(
                 ITransparentUpgradeableProxy(payable(address(strategy))),
                 address(baseStrategyImplementation),
                 abi.encodeWithSelector(
                     StrategyBase.initialize.selector,
-                    STRATEGY_MAX_PER_DEPOSIT,
-                    STRATEGY_MAX_TOTAL_DEPOSITS,
                     IERC20(strategyConfig.tokenAddress),
-                    mantaLayerPauserReg
+                    mantaLayerPauserReg,
+                    STRATEGY_MAX_PER_DEPOSIT,
+                    STRATEGY_MAX_TOTAL_DEPOSITS
                 )
             );
 

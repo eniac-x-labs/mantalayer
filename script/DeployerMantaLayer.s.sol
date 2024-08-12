@@ -41,10 +41,10 @@ contract DeployerMantaLayer is DeployerBasic {
 
         // Sanity Checks
         _verifyContractPointers();
-        // _verifyImplementations();
+        _verifyImplementations();
         _verifyContractsInitialized({isInitialDeployment: true});
         _verifyInitializationParams(); // override to check contract.owner() is EOAowner instead
 
-        logAndOutputContractAddresses("script/output/DeploymentMantaLayer.config.json");
+        logAndOutputContractAddresses("script/output/DeploymentOutput.config.json");
     }
 }

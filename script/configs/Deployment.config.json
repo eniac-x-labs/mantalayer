@@ -1,0 +1,57 @@
+{
+  "chainInfo": {
+    "chainId": 31337
+  },
+  "multisig_addresses": {
+    "pauserMultisig": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+    "communityMultisig": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    "operationsMultisig": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "executorMultisig": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "timelock": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"
+  },
+  "strategies": {
+    "numStrategies": 2,
+    "MAX_PER_DEPOSIT": 115792089237316195423570985008687907853269984665640564039457584007913129639935,
+    "MAX_TOTAL_DEPOSITS": 115792089237316195423570985008687907853269984665640564039457584007913129639935,
+    "strategiesToDeploy": [
+      {
+        "token_address": "0x6E9655611b42C10b9aF25B6ca08bE349Df45c370",
+        "token_name": "Rocket Pool ETH",
+        "token_symbol": "rETH"
+      },
+      {
+        "token_address": "0x0Dc808adcE2099A9F62AA87D9670745AbA741746",
+        "token_name": "Wrapped Ether",
+        "token_symbol": "WETH"
+      }
+    ]
+  },
+  "strategyManager": {
+    "init_strategy_whitelister": "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720",
+    "init_paused_status": 0
+  },
+  "delegationManager": {
+    "init_paused_status": 0,
+    "init_minWithdrawalDelayBlocks": 50400
+  },
+  "rewardManager": {
+    "init_paused_status": 0,
+    "CALCULATION_INTERVAL_SECONDS": 604800,
+    "MAX_REWARDS_DURATION": 6048000,
+    "MAX_RETROACTIVE_LENGTH": 7776000,
+    "MAX_FUTURE_LENGTH": 2592000,
+    "GENESIS_REWARDS_TIMESTAMP": 1710979200,
+    "rewards_updater_address": "0x0000000000000000000000000000000000000000",
+    "activation_delay": 7200,
+    "calculation_interval_seconds": 604800,
+    "global_operator_commission_bips": 1000,
+    "reward_token_address": "0x0000000000000000000000000000000000000000",
+    "stake_percentage": "1"
+  },
+  "delayedWithdrawalRouter": {
+    "init_paused_status": 0,
+    "init_withdrawalDelayBlocks": 50400
+  },
+  "ethPOSDepositAddress": "0x4242424242424242424242424242424242424242",
+  "beaconOracleAddress": "0x4C116BB629bff7A8373c2378bBd919f8349B8f25"
+}

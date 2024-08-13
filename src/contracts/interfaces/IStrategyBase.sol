@@ -5,6 +5,16 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
 interface IStrategyBase {
+    event MaxPerDepositUpdated(
+        uint256 previousValue,
+        uint256 newValue
+    );
+
+    event MaxTotalDepositsUpdated(
+        uint256 previousValue,
+        uint256 newValue
+    );
+
     function deposit(IERC20 token, uint256 amount) external returns (uint256);
 
     function withdraw(address recipient, IERC20 token, uint256 amountShares) external;
@@ -28,4 +38,8 @@ interface IStrategyBase {
     function totalShares() external view returns (uint256);
 
     function explanation() external view returns (string memory);
+
+    function setDepositLimits(uint256 newMaxPerDeposit, uint256 newMaxTotalDeposits) external;
+
+    function getDepositLimits() external view returns (uint256, uint256);
 }

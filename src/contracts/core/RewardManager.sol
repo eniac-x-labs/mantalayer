@@ -62,7 +62,7 @@ contract RewardManager is RewardManagerStorage {
     function operatorClaimReward() external returns (bool) {
         uint256 claimAmount = operatorRewards[msg.sender];
         rewardTokenAddress.safeTransferFrom(address(this), msg.sender, claimAmount);
-        operatorRewards[operator] = 0;
+        operatorRewards[msg.sender] = 0;
         emit OperatorClaimReward(
             msg.sender,
             claimAmount

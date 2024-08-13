@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.12;
-
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -28,6 +27,10 @@ contract StrategyBase is Initializable,IStrategyBase, Pausable {
 
     IERC20 public underlyingToken;
 
+    uint256 public maxPerDeposit;
+
+    uint256 public maxTotalDeposits;
+
     uint256 public totalShares;
 
     modifier onlyStrategyManager() {
@@ -40,7 +43,13 @@ contract StrategyBase is Initializable,IStrategyBase, Pausable {
         _disableInitializers();
     }
 
-    function initialize(IERC20 _underlyingToken, IPauserRegistry _pauserRegistry) public virtual initializer {
+    function initialize(
+        IERC20 _underlyingToken,
+        IPauserRegistry _pauserRegistry,
+        uint256 _maxPerDeposit,
+        uint256 _maxTotalDeposits
+    ) public virtual initializer {
+        _setDepositLimits(_maxPerDeposit, _maxTotalDeposits);
         _initializeStrategyBase(_underlyingToken, _pauserRegistry);
     }
 
@@ -51,7 +60,6 @@ contract StrategyBase is Initializable,IStrategyBase, Pausable {
         underlyingToken = _underlyingToken;
         _initializePauser(_pauserRegistry, UNPAUSE_ALL);
     }
-
 
     function deposit(
         IERC20 token,
@@ -99,6 +107,8 @@ contract StrategyBase is Initializable,IStrategyBase, Pausable {
 
     function _beforeDeposit(IERC20 token, uint256 amount) internal virtual {
         require(token == underlyingToken, "StrategyBase.deposit: Can only deposit underlyingToken");
+        require(amount <= maxPerDeposit, "StrategyBase: max per deposit exceeded");
+        require(_tokenBalance() <= maxTotalDeposits, "StrategyBase: max deposits exceeded");
     }
 
     function _beforeWithdrawal(address recipient, IERC20 token, uint256 amountShares) internal virtual {
@@ -143,6 +153,25 @@ contract StrategyBase is Initializable,IStrategyBase, Pausable {
 
     function shares(address user) public view virtual returns (uint256) {
         return strategyManager.stakerStrategyShares(user, IStrategyBase(address(this)));
+    }
+
+    function setDepositLimits(uint256 newMaxPerDeposit, uint256 newMaxTotalDeposits) external onlyStrategyManager {
+        _setDepositLimits(newMaxPerDeposit, newMaxTotalDeposits);
+    }
+
+    function getDepositLimits() external view returns (uint256, uint256) {
+        return (maxPerDeposit, maxTotalDeposits);
+    }
+
+    function _setDepositLimits(uint256 newMaxPerDeposit, uint256 newMaxTotalDeposits) internal {
+        emit MaxPerDepositUpdated(maxPerDeposit, newMaxPerDeposit);
+        emit MaxTotalDepositsUpdated(maxTotalDeposits, newMaxTotalDeposits);
+        require(
+            newMaxPerDeposit <= newMaxTotalDeposits,
+            "StrategyBase._setDepositLimits: maxPerDeposit exceeds maxTotalDeposits"
+        );
+        maxPerDeposit = newMaxPerDeposit;
+        maxTotalDeposits = newMaxTotalDeposits;
     }
 
     function _tokenBalance() internal view virtual returns (uint256) {

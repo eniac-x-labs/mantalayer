@@ -107,6 +107,8 @@ contract StrategyBase is Initializable,IStrategyBase, Pausable {
 
     function _beforeDeposit(IERC20 token, uint256 amount) internal virtual {
         require(token == underlyingToken, "StrategyBase.deposit: Can only deposit underlyingToken");
+        require(amount <= maxPerDeposit, "StrategyBase: max per deposit exceeded");
+        require(_tokenBalance() <= maxTotalDeposits, "StrategyBase: max deposits exceeded");
     }
 
     function _beforeWithdrawal(address recipient, IERC20 token, uint256 amountShares) internal virtual {

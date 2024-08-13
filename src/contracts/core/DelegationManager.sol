@@ -300,7 +300,7 @@ contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuard
         bytes32 approverSalt
     ) internal {
         require(!isDelegated(staker), "DelegationManager._delegate: staker is already actively delegated");
-        require(isOperator(operator), "DelegationManager._delegate: operator is not registered in DappLink");
+        require(isOperator(operator), "DelegationManager._delegate: operator is not registered in MantaLayer");
 
         address _delegationApprover = _operatorDetails[operator].delegationApprover;
 
@@ -615,6 +615,6 @@ contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuard
     }
 
     function _calculateDomainSeparator() internal view returns (bytes32) {
-        return keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("DappLink")), block.chainid, address(this)));
+        return keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("MantaLayer")), block.chainid, address(this)));
     }
 }

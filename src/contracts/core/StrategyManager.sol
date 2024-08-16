@@ -30,7 +30,6 @@ contract StrategyManager is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         address initialStrategyWhitelister
     ) external initializer {
         _DOMAIN_SEPARATOR = _calculateDomainSeparator();
-        _setStrategyWhitelister(initialStrategyWhitelister);
         _transferOwnership(initialOwner);
         _setStrategyWhitelister(initialStrategyWhitelister);
     }

@@ -17,7 +17,7 @@ contract RewardManager is RewardManagerStorage {
     }
 
     modifier onlyPayFeeManager() {
-        require(msg.sender == address(rewardManager), "RewardManager.only pay fee manager can call this function");
+        require(msg.sender == address(payFeeManager), "RewardManager.only pay fee manager can call this function");
         _;
     }
 

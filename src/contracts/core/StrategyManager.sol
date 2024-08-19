@@ -30,7 +30,6 @@ contract StrategyManager is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         address initialStrategyWhitelister
     ) external initializer {
         _DOMAIN_SEPARATOR = _calculateDomainSeparator();
-        _setStrategyWhitelister(initialStrategyWhitelister);
         _transferOwnership(initialOwner);
         _setStrategyWhitelister(initialStrategyWhitelister);
     }
@@ -264,7 +263,7 @@ contract StrategyManager is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     }
 
     function _calculateDomainSeparator() internal view returns (bytes32) {
-        return keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("DappLink")), block.chainid, address(this)));
+        return keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("MantaLayer")), block.chainid, address(this)));
     }
 
     function calculateWithdrawalRoot(DeprecatedStruct_QueuedWithdrawal memory queuedWithdrawal) public pure returns (bytes32) {

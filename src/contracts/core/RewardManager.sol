@@ -41,6 +41,11 @@ contract RewardManager is RewardManagerStorage {
 
         uint256 operatorShares = delegationManager.operatorShares(operator, IStrategyBase(strategy));
 
+        require(
+            totalShares > 0 && operatorShares > 0,
+            "RewardManager operatorClaimReward: one of totalShares and operatorShares is zero"
+        );
+
         uint256 operatorTotalFee = baseFee / (operatorShares / totalShares);
 
         uint256 stakeFee = operatorTotalFee * stakePercent / 100;
@@ -61,8 +66,12 @@ contract RewardManager is RewardManagerStorage {
 
     function operatorClaimReward() external returns (bool) {
         uint256 claimAmount = operatorRewards[msg.sender];
-        rewardTokenAddress.safeTransferFrom(address(this), msg.sender, claimAmount);
+        require(
+            rewardTokenAddress.balanceOf(address(this)) >= claimAmount,
+            "RewardManager operatorClaimReward: Reward Token balance insufficient"
+        );
         operatorRewards[msg.sender] = 0;
+        rewardTokenAddress.safeTransfer(msg.sender, claimAmount);
         emit OperatorClaimReward(
             msg.sender,
             claimAmount
@@ -77,8 +86,12 @@ contract RewardManager is RewardManagerStorage {
             return false;
         }
         uint256 stakeHolderAmount = strategyStakeRewards[strategy] * (stakeHoldersShare /  strategyShares);
-        rewardTokenAddress.safeTransferFrom(address(this), msg.sender, stakeHolderAmount);
+        require(
+            rewardTokenAddress.balanceOf(address(this)) >= stakeHolderAmount,
+            "RewardManager operatorClaimReward: Reward Token balance insufficient"
+        );
         strategyStakeRewards[strategy] -= stakeHolderAmount;
+        rewardTokenAddress.safeTransfer(msg.sender, stakeHolderAmount);
         emit StakeHolderClaimReward(
             msg.sender,
             stakeHolderAmount

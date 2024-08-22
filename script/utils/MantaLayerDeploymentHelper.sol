@@ -4,17 +4,18 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import "../../src/contracts/core/StrategyManager.sol";
-import "../../src/contracts/core/DelegationManager.sol";
-import "../../src/contracts/core/RewardManager.sol";
+import "@/contracts/core/StrategyManager.sol";
+import "@/contracts/core/DelegationManager.sol";
+import "@/contracts/core/RewardManager.sol";
 
-import "../../src/contracts/core/StrategyBase.sol";
+import "@/contracts/core/StrategyBase.sol";
 
-import "../../src/access/PauserRegistry.sol";
+import "@/access/PauserRegistry.sol";
 
 import "../utils/EmptyContract.sol";
+import "@/libraries/ERC20PresetFixedSupply.sol";
 
 import "forge-std/Script.sol";
 import "forge-std/Test.sol";
@@ -25,9 +26,11 @@ struct StrategyUnderlyingTokenConfig {
     string tokenSymbol;
 }
 
-contract ExistingDeploymentParser is Script, Test {
+contract MantaLayerDeploymentHelper is Script, Test {
+    // Config Path
+    string internal deploymentConfigPath;
+    string internal deploymentConfigOutputPath;
     // MantaLayer Contracts
-    ProxyAdmin public mantaLayerProxyAdmin;
     PauserRegistry public mantaLayerPauserReg;
     DelegationManager public delegationManager;
     ProxyAdmin public delegationManagerProxyAdmin;
@@ -41,25 +44,22 @@ contract ExistingDeploymentParser is Script, Test {
     ProxyAdmin public strategyBaseProxyAdmin;
     StrategyBase public baseStrategyImplementation;
     UpgradeableBeacon public strategyBeacon;
-
     EmptyContract public emptyContract;
-
-    // Reward Token
-    address public rewardTokenAddress;
-
+    ERC20PresetFixedSupply public rewardToken;
+    // Roles
     address executorMultisig;
     address operationsMultisig;
     address communityMultisig;
     address pauserMultisig;
     address timelock;
-
-    // strategies deployed
+    // Strategies deployed
     uint256 numStrategiesDeployed;
     StrategyBase[] public deployedStrategyArray;
-    // Strategies to Deploy
+    // Underlying tokens deployed
+    IERC20[] public deployedTokenArray;
+    // Strategies to deploy
     uint256 numStrategiesToDeploy;
-    StrategyUnderlyingTokenConfig[] public strategiesToDeploy;
-
+    StrategyUnderlyingTokenConfig[] public strategiesToDeploy; 
     /// @notice Initialization Params for first initial deployment scripts
     // StrategyManager
     uint256 STRATEGY_MANAGER_INIT_PAUSED_STATUS;
@@ -79,13 +79,16 @@ contract ExistingDeploymentParser is Script, Test {
     uint32 REWARD_MANAGER_GLOBAL_OPERATOR_COMMISSION_BIPS;
     address REWARD_MANAGER_RWARD_TOKEN_ADDRESS;
     uint32 REWARD_MANAGER_STAKE_PERCENTAGE;
-
-    // one week in blocks -- 50400
-    uint32 DELAYED_WITHDRAWAL_ROUTER_INIT_WITHDRAWAL_DELAY_BLOCKS;
-
     // Strategy Deployment
     uint256 STRATEGY_MAX_PER_DEPOSIT;
     uint256 STRATEGY_MAX_TOTAL_DEPOSITS;
+
+    address mantaLayerPauserRegAddress;
+    address delegationManagerAddress;
+    address strategyManagerAddress;
+    address emptyContractAddress;
+    address rewardManagerAddress;
+    address rewardTokenAddress;
 
     /// @notice use for parsing already deployed MantaLayer contracts
     function _parseDeployedContracts(string memory existingDeploymentInfoPath) internal virtual {
@@ -107,9 +110,6 @@ contract ExistingDeploymentParser is Script, Test {
         pauserMultisig = stdJson.readAddress(existingDeploymentData, ".parameters.pauserMultisig");
         timelock = stdJson.readAddress(existingDeploymentData, ".parameters.timelock");
 
-        mantaLayerProxyAdmin = ProxyAdmin(
-            stdJson.readAddress(existingDeploymentData, ".addresses.mantaLayerProxyAdmin")
-        );
         mantaLayerPauserReg = PauserRegistry(
             stdJson.readAddress(existingDeploymentData, ".addresses.mantaLayerPauserReg")
         );
@@ -221,7 +221,6 @@ contract ExistingDeploymentParser is Script, Test {
         );
         REWARD_MANAGER_RWARD_TOKEN_ADDRESS = stdJson.readAddress(initialDeploymentData, ".rewardManager.reward_token_address");
         REWARD_MANAGER_STAKE_PERCENTAGE = uint32(stdJson.readUint(initialDeploymentData, ".rewardManager.stake_percentage"));
-
         logInitialDeploymentParams();
     }
 
@@ -264,13 +263,11 @@ contract ExistingDeploymentParser is Script, Test {
             "strategyManager: implementation set incorrectly"
         );
 
-        // for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
-        //     require(
-        //         TransparentUpgradeableProxy(payable(address(deployedStrategyArray[i])))._implementation()
-        //         == address(baseStrategyImplementation),
-        //         "strategy: implementation set incorrectly"
-        //     );
-        // }
+        for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
+            require(getImplementationAddress(address(deployedStrategyArray[i])) == address(baseStrategyImplementation),
+                "strategy: implementation set incorrectly"
+            );
+        }
     }
 
     /**
@@ -387,10 +384,6 @@ contract ExistingDeploymentParser is Script, Test {
         );
         emit log_named_uint("DELEGATION_MANAGER_INIT_PAUSED_STATUS", DELEGATION_MANAGER_INIT_PAUSED_STATUS);
         emit log_named_uint("REWARD_MANAGER_INIT_PAUSED_STATUS", REWARD_MANAGER_INIT_PAUSED_STATUS);
-        emit log_named_uint(
-            "DELAYED_WITHDRAWAL_ROUTER_INIT_WITHDRAWAL_DELAY_BLOCKS",
-            DELAYED_WITHDRAWAL_ROUTER_INIT_WITHDRAWAL_DELAY_BLOCKS
-        );
 
         emit log_string("==== Strategies to Deploy ====");
         for (uint256 i = 0; i < numStrategiesToDeploy; ++i) {
@@ -408,27 +401,21 @@ contract ExistingDeploymentParser is Script, Test {
      * @notice Log contract addresses and write to output json file
      */
     function logAndOutputContractAddresses(string memory outputPath) public {
-        // WRITE JSON DATA
         string memory parent_object = "parent object";
-
-        string memory deployed_strategies = "strategies";
-        for (uint256 i = 0; i < numStrategiesToDeploy; ++i) {
-            vm.serializeAddress(
-                deployed_strategies,
-                strategiesToDeploy[i].tokenSymbol,
-                address(deployedStrategyArray[i])
-            );
-        }
-        string memory deployed_strategies_output = numStrategiesToDeploy == 0
-            ? ""
-            : vm.serializeAddress(
-                deployed_strategies,
-                strategiesToDeploy[numStrategiesToDeploy - 1].tokenSymbol,
-                address(deployedStrategyArray[numStrategiesToDeploy - 1])
-            );
-
+        // JSON field: parameters
+        string memory parameters = "parameters";
+        vm.serializeAddress(parameters, "executorMultisig", executorMultisig);
+        vm.serializeAddress(parameters, "operationsMultisig", operationsMultisig);
+        vm.serializeAddress(parameters, "communityMultisig", communityMultisig);
+        vm.serializeAddress(parameters, "pauserMultisig", pauserMultisig);
+        vm.serializeAddress(parameters, "timelock", timelock);
+        string memory parameters_output = vm.serializeAddress(parameters, "operationsMultisig", operationsMultisig);
+        // JSON field: chainInfo
+        string memory chain_info = "chainInfo";
+        vm.serializeUint(chain_info, "deploymentBlock", block.number);
+        string memory chain_info_output = vm.serializeUint(chain_info, "chainId", block.chainid);
+        // JSON field: addresses
         string memory deployed_addresses = "addresses";
-        vm.serializeAddress(deployed_addresses, "mantaLayerProxyAdmin", address(mantaLayerProxyAdmin));
         vm.serializeAddress(deployed_addresses, "mantaLayerPauserReg", address(mantaLayerPauserReg));
         vm.serializeAddress(deployed_addresses, "delegationManager", address(delegationManager));
         vm.serializeAddress(
@@ -450,24 +437,49 @@ contract ExistingDeploymentParser is Script, Test {
         );
         vm.serializeAddress(deployed_addresses, "baseStrategyImplementation", address(baseStrategyImplementation));
         vm.serializeAddress(deployed_addresses, "emptyContract", address(emptyContract));
-        string memory deployed_addresses_output = vm.serializeString(
+        vm.serializeAddress(deployed_addresses, "rewardToken", address(rewardToken));
+        // JSON field(sub-field): strategies
+        string memory deployed_strategies = "strategies";
+        for (uint256 i = 0; i < numStrategiesToDeploy; ++i) {
+            vm.serializeAddress(
+                deployed_strategies,
+                strategiesToDeploy[i].tokenSymbol,
+                address(deployedStrategyArray[i])
+            );
+        }
+        string memory deployed_strategies_output = numStrategiesToDeploy == 0
+            ? ""
+            : vm.serializeAddress(
+                deployed_strategies,
+                strategiesToDeploy[numStrategiesToDeploy - 1].tokenSymbol,
+                address(deployedStrategyArray[numStrategiesToDeploy - 1])
+            );
+        // JSON field(sub-field): underlyingTokens
+        string memory underlying_tokens = "underlyingTokens";
+        for (uint256 i = 0; i < deployedTokenArray.length; ++i) {
+            vm.serializeAddress(
+                underlying_tokens,
+                IERC20Metadata(address(deployedTokenArray[i])).symbol(),
+                address(deployedTokenArray[i])
+            );
+        }
+        string memory deployed_underlying_token_output = deployedTokenArray.length == 0
+            ? ""
+            : vm.serializeAddress(
+                underlying_tokens,
+                IERC20Metadata(address(deployedTokenArray[deployedTokenArray.length - 1])).symbol(),
+                address(deployedTokenArray[deployedTokenArray.length - 1])
+            );
+        vm.serializeString(
             deployed_addresses,
             "strategies",
             deployed_strategies_output
         );
-
-        string memory parameters = "parameters";
-        vm.serializeAddress(parameters, "executorMultisig", executorMultisig);
-        vm.serializeAddress(parameters, "operationsMultisig", operationsMultisig);
-        vm.serializeAddress(parameters, "communityMultisig", communityMultisig);
-        vm.serializeAddress(parameters, "pauserMultisig", pauserMultisig);
-        vm.serializeAddress(parameters, "timelock", timelock);
-        string memory parameters_output = vm.serializeAddress(parameters, "operationsMultisig", operationsMultisig);
-
-        string memory chain_info = "chainInfo";
-        vm.serializeUint(chain_info, "deploymentBlock", block.number);
-        string memory chain_info_output = vm.serializeUint(chain_info, "chainId", block.chainid);
-
+        string memory deployed_addresses_output = vm.serializeString(
+            deployed_addresses,
+            "underlyingTokens",
+            deployed_underlying_token_output
+        );
         // serialize all the data
         vm.serializeString(parent_object, deployed_addresses, deployed_addresses_output);
         vm.serializeString(parent_object, chain_info, chain_info_output);
@@ -479,18 +491,41 @@ contract ExistingDeploymentParser is Script, Test {
     function getProxyAdminAddress(address proxy) internal view returns (address) {
         // Cheatcode address of Foundry
         address CHEATCODE_ADDRESS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
-        Vm vm = Vm(CHEATCODE_ADDRESS);
+        Vm _vm = Vm(CHEATCODE_ADDRESS);
 
-        bytes32 adminSlot = vm.load(proxy, ERC1967Utils.ADMIN_SLOT);
+        bytes32 adminSlot = _vm.load(proxy, ERC1967Utils.ADMIN_SLOT);
         return address(uint160(uint256(adminSlot)));
     }
 
     function getImplementationAddress(address proxy) internal view returns (address) {
         // Cheatcode address of Foundry
         address CHEATCODE_ADDRESS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
-        Vm vm = Vm(CHEATCODE_ADDRESS);
+        Vm _vm = Vm(CHEATCODE_ADDRESS);
 
-        bytes32 implementationSlot = vm.load(proxy, ERC1967Utils.IMPLEMENTATION_SLOT);
+        bytes32 implementationSlot = _vm.load(proxy, ERC1967Utils.IMPLEMENTATION_SLOT);
         return address(uint160(uint256(implementationSlot)));
     }
+
+    // Overwrite multisig to be a single EOA for testing.
+    function multisigToEOAForTesting(address EOAAddress) internal {
+        executorMultisig = EOAAddress;
+        operationsMultisig = EOAAddress;
+        pauserMultisig = EOAAddress;
+        communityMultisig = EOAAddress;
+        STRATEGY_MANAGER_WHITELISTER = EOAAddress;
+    }
+
+    function _matchDeploymentConfigPath() internal {
+        if (block.chainid == 169) {
+            deploymentConfigPath = "script/configs/Deployment_Manta_Mainnet.config.json";
+            deploymentConfigOutputPath = "script/output/DeploymentOutput_Manta_Mainnet.config.json";
+        } else if (block.chainid == 3441006) {
+            deploymentConfigPath = "script/configs/Deployment_Manta_Sepolia.config.json";
+            deploymentConfigOutputPath = "script/output/DeploymentOutput_Manta_Sepolia.config.json";
+        } else if (block.chainid == 31337) {
+            deploymentConfigPath = "script/configs/Deployment_Local.config.json";
+            deploymentConfigOutputPath = "script/output/DeploymentOutput_Local.config.json";
+        }
+    }
+    
 }

@@ -19,32 +19,22 @@ contract DeployerMantaLayer is DeployerBasic {
     address EOAowner;
 
     function run() external virtual override {
-        _parseInitialDeploymentParams("script/configs/Deployment.config.json");
-
+        _matchDeploymentConfigPath();
+        _parseInitialDeploymentParams(deploymentConfigPath);
         // Overwrite multisig to be EOAowner
         EOAowner = msg.sender;
-        executorMultisig = EOAowner;
-        operationsMultisig = EOAowner;
-        pauserMultisig = EOAowner;
-        communityMultisig = EOAowner;
-        STRATEGY_MANAGER_WHITELISTER = EOAowner;
-
+        multisigToEOAForTesting(EOAowner);
         // START RECORDING TRANSACTIONS FOR DEPLOYMENT
         vm.startBroadcast();
-
         emit log_named_address("Deployer and EOAowner Address", EOAowner);
-
-        _deployFromScratch();
-
+        _deploy(true);
         // STOP RECORDING TRANSACTIONS FOR DEPLOYMENT
         vm.stopBroadcast();
-
         // Sanity Checks
         _verifyContractPointers();
         _verifyImplementations();
         _verifyContractsInitialized({isInitialDeployment: true});
         _verifyInitializationParams(); // override to check contract.owner() is EOAowner instead
-
-        logAndOutputContractAddresses("script/output/DeploymentOutput.config.json");
+        logAndOutputContractAddresses(deploymentConfigOutputPath);
     }
 }

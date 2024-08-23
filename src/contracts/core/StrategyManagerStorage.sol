@@ -9,7 +9,7 @@ abstract contract StrategyManagerStorage is IStrategyManager {
     keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
 
     bytes32 public constant DEPOSIT_TYPEHASH =
-    keccak256("Deposit(address staker,address strategy,address weth,uint256 amount,uint256 nonce,uint256 expiry)");
+    keccak256("Deposit(address staker,address strategy,address mantaToken,uint256 amount,uint256 nonce,uint256 expiry)");
 
     uint8 internal constant MAX_STAKER_STRATEGY_LIST_LENGTH = 32;
 

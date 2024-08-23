@@ -16,6 +16,7 @@ interface IRewardManager {
 
     event StakeHolderClaimReward(
         address stakeHolder,
+        address strategy,
         uint256 amount
     );
 

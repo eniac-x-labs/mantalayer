@@ -186,21 +186,21 @@ contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuard
 
     function completeQueuedWithdrawal(
         Withdrawal calldata withdrawal,
-        IERC20 weth,
+        IERC20 mantaToken,
         uint256 middlewareTimesIndex,
-        bool receiveAsWeth
+        bool receiveAsMantaToken
     ) external nonReentrant {
-        _completeQueuedWithdrawal(withdrawal, weth, middlewareTimesIndex, receiveAsWeth);
+        _completeQueuedWithdrawal(withdrawal, mantaToken, middlewareTimesIndex, receiveAsMantaToken);
     }
 
     function completeQueuedWithdrawals(
         Withdrawal[] calldata withdrawals,
-        IERC20 weth,
+        IERC20 mantaToken,
         uint256[] calldata middlewareTimesIndexes,
-        bool[] calldata receiveAsWeth
+        bool[] calldata receiveAsMantaToken
     ) external nonReentrant {
         for (uint256 i = 0; i < withdrawals.length; ++i) {
-            _completeQueuedWithdrawal(withdrawals[i], weth, middlewareTimesIndexes[i], receiveAsWeth[i]);
+            _completeQueuedWithdrawal(withdrawals[i], mantaToken, middlewareTimesIndexes[i], receiveAsMantaToken[i]);
         }
     }
 
@@ -352,9 +352,9 @@ contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuard
 
     function _completeQueuedWithdrawal(
         Withdrawal calldata withdrawal,
-        IERC20 weth,
+        IERC20 mantaToken,
         uint256,
-        bool receiveAsWeth
+        bool receiveAsMantaToken
     ) internal {
         bytes32 withdrawalRoot = calculateWithdrawalRoot(withdrawal);
 
@@ -375,7 +375,7 @@ contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuard
 
         delete pendingWithdrawals[withdrawalRoot];
         address currentOperator = delegatedTo[msg.sender];
-        if (receiveAsWeth) {
+        if (receiveAsMantaToken) {
             for (uint256 i = 0; i < withdrawal.strategies.length; ) {
                 require(
                     withdrawal.startBlock + strategyWithdrawalDelayBlocks[withdrawal.strategies[i]] <= block.number,
@@ -385,7 +385,7 @@ contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuard
                     withdrawer: msg.sender,
                     strategy: withdrawal.strategies[i],
                     shares: withdrawal.shares[i],
-                    weth: weth
+                    mantaToken: mantaToken
                 });
                 unchecked { ++i; }
                 emit WithdrawalCompleted(currentOperator, msg.sender, withdrawal.strategies[i], withdrawal.shares[i]);
@@ -396,7 +396,7 @@ contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuard
                      withdrawal.startBlock + strategyWithdrawalDelayBlocks[withdrawal.strategies[i]] <= block.number,
                      "DelegationManager._completeQueuedWithdrawal: withdrawalDelayBlocks period has not yet passed for this strategy"
                  );
-                strategyManager.addShares(msg.sender, weth, withdrawal.strategies[i], withdrawal.shares[i]);
+                strategyManager.addShares(msg.sender, mantaToken, withdrawal.strategies[i], withdrawal.shares[i]);
                 if (currentOperator != address(0)) {
                     _increaseOperatorShares({
                         operator: currentOperator,
@@ -468,8 +468,8 @@ contract DelegationManager is Initializable, OwnableUpgradeable, ReentrancyGuard
         return withdrawalRoot;
     }
 
-    function _withdrawSharesAsTokens(address withdrawer, IStrategyBase strategy, uint256 shares, IERC20 weth) internal {
-        strategyManager.withdrawSharesAsTokens(withdrawer, strategy, shares, weth);
+    function _withdrawSharesAsTokens(address withdrawer, IStrategyBase strategy, uint256 shares, IERC20 mantaToken) internal {
+        strategyManager.withdrawSharesAsTokens(withdrawer, strategy, shares, mantaToken);
     }
 
     function _setMinWithdrawalDelayBlocks(uint256 _minWithdrawalDelayBlocks) internal {

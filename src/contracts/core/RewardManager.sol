@@ -94,6 +94,7 @@ contract RewardManager is RewardManagerStorage {
         rewardTokenAddress.safeTransfer(msg.sender, stakeHolderAmount);
         emit StakeHolderClaimReward(
             msg.sender,
+            strategy,
             stakeHolderAmount
         );
         return true;

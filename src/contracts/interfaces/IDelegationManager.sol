@@ -6,21 +6,10 @@ import "./ISignatureUtils.sol";
 import "./IStrategyManager.sol";
 
 interface IDelegationManager is ISignatureUtils {
-    enum OperatorType {
-        SocialNode,
-        GameNode,
-        MpcNode,
-        DaNode,
-        TradingNode,
-        AiNode,
-        otherNode
-    }
-
     struct OperatorDetails {
         address earningsReceiver;
         address delegationApprover;
         uint32 stakerOptOutWindowBlocks;
-        OperatorType operatorType;
     }
 
     struct StakerDelegation {
@@ -110,14 +99,14 @@ interface IDelegationManager is ISignatureUtils {
 
     function completeQueuedWithdrawal(
         Withdrawal calldata withdrawal,
-        IERC20 weth,
+        IERC20 mantaToken,
         uint256 middlewareTimesIndex,
         bool receiveAsTokens
     ) external;
 
     function completeQueuedWithdrawals(
         Withdrawal[] calldata withdrawals,
-        IERC20 weth,
+        IERC20 mantaToken,
         uint256[] calldata middlewareTimesIndexes,
         bool[] calldata receiveAsTokens
     ) external;

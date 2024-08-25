@@ -24,15 +24,15 @@ contract RewardManager is RewardManagerStorage {
     constructor(
         IDelegationManager _delegationManager,
         IStrategyManager _stragegyManager,
-        IERC20 _rewardTokenAddress,
-        uint256 _stakePercent
+        IERC20 _rewardTokenAddress
     ) RewardManagerStorage(_delegationManager, _stragegyManager, _rewardTokenAddress, _stakePercent) {
         _disableInitializers();
     }
 
-    function initialize(address initialOwner, address _rewardManager, address _payFeeManager) external initializer {
+    function initialize(address initialOwner, address _rewardManager, address _payFeeManager, uint256 _stakePercent) external initializer {
         payFeeManager = _payFeeManager;
         rewardManager = _rewardManager;
+        stakePercent = _stakePercent;
         _transferOwnership(initialOwner);
     }
 

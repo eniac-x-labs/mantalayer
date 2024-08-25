@@ -30,7 +30,6 @@ abstract contract RewardManagerStorage is Initializable, OwnableUpgradeable, Ree
     constructor(IDelegationManager _delegationManager, IStrategyManager _stragegyManager, IERC20 _rewardTokenAddress, uint256 _stakePercent) {
         delegationManager = _delegationManager;
         strategyManager = _stragegyManager;
-        stakePercent = _stakePercent;
         rewardTokenAddress = _rewardTokenAddress;
     }
 

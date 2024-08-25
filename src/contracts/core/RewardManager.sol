@@ -46,7 +46,7 @@ contract RewardManager is RewardManagerStorage {
             "RewardManager operatorClaimReward: one of totalShares and operatorShares is zero"
         );
 
-        uint256 operatorTotalFee = baseFee / (operatorShares / totalShares);
+        uint256 operatorTotalFee = baseFee * operatorShares / totalShares;
 
         uint256 stakeFee = operatorTotalFee * stakePercent / 100;
 

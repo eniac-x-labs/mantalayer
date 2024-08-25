@@ -99,16 +99,12 @@ interface IDelegationManager is ISignatureUtils {
 
     function completeQueuedWithdrawal(
         Withdrawal calldata withdrawal,
-        IERC20 mantaToken,
-        uint256 middlewareTimesIndex,
-        bool receiveAsTokens
+        IERC20 mantaToken
     ) external;
 
     function completeQueuedWithdrawals(
         Withdrawal[] calldata withdrawals,
-        IERC20 mantaToken,
-        uint256[] calldata middlewareTimesIndexes,
-        bool[] calldata receiveAsTokens
+        IERC20 mantaToken
     ) external;
 
     function increaseDelegatedShares(

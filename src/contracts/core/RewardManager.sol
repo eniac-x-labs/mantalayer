@@ -67,6 +67,10 @@ contract RewardManager is RewardManagerStorage {
     function operatorClaimReward() external returns (bool) {
         uint256 claimAmount = operatorRewards[msg.sender];
         require(
+            claimAmount > 0,
+            "RewardManager operatorClaimReward: operator claim amount need more then zero"
+        );
+        require(
             rewardTokenAddress.balanceOf(address(this)) >= claimAmount,
             "RewardManager operatorClaimReward: Reward Token balance insufficient"
         );
@@ -86,6 +90,10 @@ contract RewardManager is RewardManagerStorage {
             return false;
         }
         uint256 stakeHolderAmount = strategyStakeRewards[strategy] * (stakeHoldersShare /  strategyShares);
+        require(
+            stakeHolderAmount > 0,
+            "RewardManager operatorClaimReward: stake holder amount need more then zero"
+        );
         require(
             rewardTokenAddress.balanceOf(address(this)) >= stakeHolderAmount,
             "RewardManager operatorClaimReward: Reward Token balance insufficient"

@@ -84,12 +84,7 @@ contract RewardManager is RewardManagerStorage {
     }
 
     function stakeHolderClaimReward(address strategy) external returns (bool) {
-        uint256 stakeHoldersShare = strategyManager.stakerStrategyShares(msg.sender, IStrategyBase(strategy));
-        uint256 strategyShares = IStrategyBase(strategy).totalShares();
-        if (stakeHoldersShare == 0 ||strategyShares == 0) {
-            return false;
-        }
-        uint256 stakeHolderAmount = strategyStakeRewards[strategy] * (stakeHoldersShare /  strategyShares);
+        uint256 stakeHolderAmount = _stakeHolderAmount(msg.sender, strategy);
         require(
             stakeHolderAmount > 0,
             "RewardManager operatorClaimReward: stake holder amount need more then zero"
@@ -107,6 +102,20 @@ contract RewardManager is RewardManagerStorage {
         );
         return true;
     }
+
+    function getStakeHolderAmount(address strategy) external returns (uint256) {
+        return _stakeHolderAmount(msg.sender, strategy);
+    }
+
+    function _stakeHolderAmount(address staker, address strategy) internal returns (uint256) {
+        uint256 stakeHoldersShare = strategyManager.stakerStrategyShares(staker, IStrategyBase(strategy));
+        uint256 strategyShares = IStrategyBase(strategy).totalShares();
+        if (stakeHoldersShare == 0 ||strategyShares == 0) {
+            return 0;
+        }
+        return strategyStakeRewards[strategy] * (stakeHoldersShare /  strategyShares);
+    }
+
 
     function updateStakePercent(uint256 _stakePercent) external onlyRewardManager {
         stakePercent = _stakePercent;

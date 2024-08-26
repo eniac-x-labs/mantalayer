@@ -25,7 +25,7 @@ contract RewardManager is RewardManagerStorage {
         IDelegationManager _delegationManager,
         IStrategyManager _stragegyManager,
         IERC20 _rewardTokenAddress
-    ) RewardManagerStorage(_delegationManager, _stragegyManager, _rewardTokenAddress, _stakePercent) {
+    ) RewardManagerStorage(_delegationManager, _stragegyManager, _rewardTokenAddress) {
         _disableInitializers();
     }
 

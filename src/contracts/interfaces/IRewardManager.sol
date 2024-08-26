@@ -22,6 +22,7 @@ interface IRewardManager {
 
     function payFee(address strategy, address operator, uint256 baseFee) external;
     function operatorClaimReward() external returns (bool);
+    function getStakeHolderAmount(address strategy) external returns (uint256);
     function stakeHolderClaimReward(address strategy) external returns (bool);
     function updateStakePercent(uint256 _stakePercent) external;
 }

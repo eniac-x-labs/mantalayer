@@ -126,8 +126,7 @@ contract DeployerBasic is ExistingDeploymentParser {
         rewardManagerImplementation = new RewardManager(
             delegationManager,
             strategyManager,
-            IERC20(REWARD_MANAGER_RWARD_TOKEN_ADDRESS),
-            REWARD_MANAGER_STAKE_PERCENTAGE
+            IERC20(REWARD_MANAGER_RWARD_TOKEN_ADDRESS)
         );
         rewardManager = RewardManager(
             address(
@@ -138,7 +137,8 @@ contract DeployerBasic is ExistingDeploymentParser {
                         RewardManager.initialize.selector,
                         executorMultisig,
                         executorMultisig,
-                        executorMultisig
+                        executorMultisig,
+                        REWARD_MANAGER_STAKE_PERCENTAGE
                     )
                 )
             )

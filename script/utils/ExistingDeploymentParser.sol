@@ -284,7 +284,8 @@ contract ExistingDeploymentParser is Script, Test {
         rewardManager.initialize(
             executorMultisig,
             executorMultisig,
-            executorMultisig
+            executorMultisig,
+            REWARD_MANAGER_STAKE_PERCENTAGE
         );
         // DelegationManager
         vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));

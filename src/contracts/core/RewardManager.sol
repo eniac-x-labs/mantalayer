@@ -113,7 +113,7 @@ contract RewardManager is RewardManagerStorage {
         if (stakeHoldersShare == 0 ||strategyShares == 0) {
             return 0;
         }
-        return strategyStakeRewards[strategy] * (stakeHoldersShare /  strategyShares);
+        return strategyStakeRewards[strategy] * stakeHoldersShare / strategyShares;
     }
 
 

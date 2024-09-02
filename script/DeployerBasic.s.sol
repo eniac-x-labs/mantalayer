@@ -7,7 +7,6 @@ import "./utils/MantaLayerDeploymentHelper.sol";
  * @notice Script used for the first deployment of MantaLayer core contracts to Manta Network
  * forge script script/DeployerBasic.s.sol --rpc-url http://127.0.0.1:8545 --private-key $PRIVATE_KEY --broadcast -vvvv
  * forge script script/DeployerBasic.s.sol --rpc-url $RPC_MANTA --private-key $PRIVATE_KEY --broadcast -vvvv
- *
  */
 contract DeployerBasic is MantaLayerDeploymentHelper {
     function run() external virtual {
@@ -140,6 +139,29 @@ contract DeployerBasic is MantaLayerDeploymentHelper {
             thirdPartyTransfersForbiddenValues[i] = false;
             deployedStrategyArray.push(strategy);
         }
+
+        // Deploy RewardManager proxy and implementation
+        rewardManagerImplementation = new RewardManager(
+            delegationManager,
+            strategyManager,
+            IERC20(REWARD_MANAGER_RWARD_TOKEN_ADDRESS),
+            REWARD_MANAGER_STAKE_PERCENTAGE
+        );
+        rewardManager = RewardManager(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(rewardManagerImplementation),
+                    address(mantaLayerProxyAdmin),
+                    abi.encodeWithSelector(
+                        RewardManager.initialize.selector,
+                        executorMultisig,
+                        executorMultisig,
+                        executorMultisig
+                    )
+                )
+            )
+        );
+
         // Add strategies to whitelist and set whitelister to STRATEGY_MANAGER_WHITELISTER
         strategyManager.addStrategiesToDepositWhitelist(strategiesToWhitelist, thirdPartyTransfersForbiddenValues);
         strategyManager.setStrategyWhitelister(STRATEGY_MANAGER_WHITELISTER);

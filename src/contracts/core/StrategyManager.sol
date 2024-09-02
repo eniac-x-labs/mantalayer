@@ -78,11 +78,11 @@ contract StrategyManager is Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
     function addShares(
         address staker,
-        IERC20 weth,
+        IERC20 mantaToken,
         IStrategyBase strategy,
         uint256 shares
     ) external onlyDelegationManager {
-        _addShares(staker, weth, strategy, shares);
+        _addShares(staker, mantaToken, strategy, shares);
     }
 
     function withdrawSharesAsTokens(
@@ -150,7 +150,7 @@ contract StrategyManager is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     }
 
     // INTERNAL FUNCTIONS
-    function _addShares(address staker, IERC20 weth, IStrategyBase strategy, uint256 shares) internal {
+    function _addShares(address staker, IERC20 mantaToken, IStrategyBase strategy, uint256 shares) internal {
         require(staker != address(0), "StrategyManager._addShares: staker cannot be zero address");
         require(shares != 0, "StrategyManager._addShares: shares should not be zero!");
 
@@ -164,7 +164,7 @@ contract StrategyManager is Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
         stakerStrategyShares[staker][strategy] += shares;
 
-        emit Deposit(staker, weth, strategy, shares);
+        emit Deposit(staker, mantaToken, strategy, shares);
     }
 
     function _depositIntoStrategy(

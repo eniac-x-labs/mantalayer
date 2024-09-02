@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IStrategyBase} from "./IStrategyBase.sol";
 
 interface IStrategyManager {
-    event Deposit(address staker, IERC20 weth, IStrategyBase strategy, uint256 shares);
+    event Deposit(address staker, IERC20 mantaToken, IStrategyBase strategy, uint256 shares);
 
     event UpdatedThirdPartyTransfersForbidden(IStrategyBase strategy, bool value);
 
@@ -29,7 +29,7 @@ interface IStrategyManager {
 
     function removeShares(address staker, IStrategyBase strategy, uint256 shares) external;
 
-    function addShares(address staker, IERC20 weth, IStrategyBase strategy, uint256 shares) external;
+    function addShares(address staker, IERC20 mantaToken, IStrategyBase strategy, uint256 shares) external;
 
     function withdrawSharesAsTokens(address recipient, IStrategyBase strategy, uint256 shares, IERC20 tokenAddress) external;
 

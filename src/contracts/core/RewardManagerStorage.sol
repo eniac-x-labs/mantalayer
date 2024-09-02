@@ -27,10 +27,9 @@ abstract contract RewardManagerStorage is Initializable, OwnableUpgradeable, Ree
     mapping(address => uint256) public strategyStakeRewards;
     mapping(address => uint256) public operatorRewards;
 
-    constructor(IDelegationManager _delegationManager, IStrategyManager _stragegyManager, IERC20 _rewardTokenAddress, uint256 _stakePercent) {
+    constructor(IDelegationManager _delegationManager, IStrategyManager _stragegyManager, IERC20 _rewardTokenAddress) {
         delegationManager = _delegationManager;
         strategyManager = _stragegyManager;
-        stakePercent = _stakePercent;
         rewardTokenAddress = _rewardTokenAddress;
     }
 

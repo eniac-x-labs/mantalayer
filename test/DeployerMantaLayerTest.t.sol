@@ -89,7 +89,7 @@ contract DeployerMantaLayerTest is DeployerBasicTest {
         // override to check contract.owner() is EOAowner instead
         _verifyInitializationParams();
 
-        logAndOutputContractAddresses("script/output/DeploymentOutput.config.json");
+//        logAndOutputContractAddresses("script/output/DeploymentOutput.config.json");
     }
 
     function _registerAsOperator() public {
